@@ -1,13 +1,14 @@
 # Infidex 176 V — Focusing Scale Generator
 
-A drawing sheet for the [Infidex 176 V](https://identidem.design) focusing
-helicoid that also generates the part it documents. Set the taking lens, turn
-View A to check the marks fall where you expect, then export View B as an SVG,
-print it at 100% and wrap it round the focus ring.
+The scale is shown **at actual size**. Hold the real focus ring against the
+screen and check it before you print anything. Browsers guess at physical
+screen size and are usually wrong, so there is a calibration control: hold any
+bank card against the outline and drag until they match. The setting is kept in
+`localStorage` for that device.
 
-The two views are live: change the focus ring diameter and the Ø dimension
-follows, change the rotation and the overall length does. Derived values are
-shown in brackets, as reference dimensions are on a real drawing.
+Below the rig, the working: the focus ring in plan, which you can turn to check
+the marks land where you expect, and a schedule of every parameter. Derived
+values are shown in brackets, as reference dimensions are on a real drawing.
 
 ## Running it
 
