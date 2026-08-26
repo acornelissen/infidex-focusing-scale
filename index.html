@@ -40,9 +40,11 @@
   --sans: "Saira SemiCondensed", "Avenir Next Condensed", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --page: 1240px;
-  --w-frame: 1.5px;
-  --w-rule:  1px;
-  --pad: 20px;
+  --rule:      rgba(18,18,18,.13);   /* structure */
+  --rule-soft: rgba(18,18,18,.07);   /* rows */
+  --rule-firm: rgba(18,18,18,.22);   /* controls, where an edge must be grabbable */
+  --w-rule: 1px;
+  --pad: 24px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -119,10 +121,10 @@ body {
 /* ===============================================================
    THE SHEET — the working below
    =============================================================== */
-.sheet { max-width: var(--page); margin: 30px auto 60px; background: var(--paper); border: var(--w-frame) solid var(--ink); }
-@media (max-width: 820px) { .sheet { margin: 0; border-width: 0 0 var(--w-frame); } }
+.sheet { max-width: var(--page); margin: 30px auto 60px; background: var(--paper); border: 1px solid var(--rule); }
+@media (max-width: 820px) { .sheet { margin: 0; border-width: 0 0 1px; } }
 
-.cells { display: grid; gap: var(--w-rule); background: var(--ink); }
+.cells { display: grid; gap: var(--w-rule); background: var(--rule); }
 .cell  { background: var(--paper); padding: 12px var(--pad); min-width: 0; }
 
 .k { font-size: 11px; font-weight: 600; letter-spacing: .19em; text-transform: uppercase;
@@ -130,12 +132,12 @@ body {
 .v { font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
 
 .upper { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); }
-.lower { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); border-top: var(--w-frame) solid var(--ink); }
-@media (max-width: 900px) { .upper, .lower { grid-template-columns: 1fr; } }
+.lower { grid-template-columns: 1fr; border-top: 1px solid var(--rule); }
+@media (max-width: 900px) { .upper { grid-template-columns: 1fr; } }
 
 .block { padding: 0; display: flex; flex-direction: column; }
 .block-label {
-  border-bottom: var(--w-rule) solid var(--ink); padding: 9px var(--pad);
+  border-bottom: 1px solid var(--rule); padding: 11px var(--pad);
   font-size: 11px; font-weight: 600; letter-spacing: .19em; text-transform: uppercase;
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
@@ -151,10 +153,10 @@ table.schedule { width: 100%; border-collapse: collapse; }
 .schedule th, .schedule td { text-align: left; padding: 0; }
 .schedule thead th {
   font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink-mid); padding: 8px var(--pad); border-bottom: var(--w-rule) solid var(--ink);
+  color: var(--ink-mid); padding: 9px var(--pad); border-bottom: 1px solid var(--rule);
 }
 .schedule thead th.num, .schedule td.num { text-align: right; }
-.schedule tbody td { border-bottom: var(--w-rule) solid rgba(18,18,18,.12); padding: 7px var(--pad); vertical-align: middle; }
+.schedule tbody td { border-bottom: 1px solid var(--rule-soft); padding: 8px var(--pad); vertical-align: middle; }
 .schedule tbody tr:last-child td { border-bottom: 0; }
 .schedule td.par { font-size: 15px; }
 .schedule td.par .note-txt { display: block; font-size: 12px; color: var(--ink-mid); }
@@ -162,25 +164,28 @@ table.schedule { width: 100%; border-collapse: collapse; }
 .schedule td.num { width: 136px; white-space: nowrap; font-family: var(--mono); letter-spacing: -.02em; }
 .schedule input[type="number"] {
   font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--ink);
-  background: var(--paper); border: var(--w-rule) solid rgba(18,18,18,.28);
-  padding: 5px 8px; width: 100%; text-align: right; border-radius: 0;
+  background: var(--paper); border: 1px solid var(--rule-firm);
+  padding: 6px 9px; width: 100%; text-align: right; border-radius: 0;
 }
-.schedule input[type="number"]:hover { border-color: var(--ink); }
+.schedule input[type="number"]:hover { border-color: var(--ink-mid); }
 .schedule tr.derived td { color: var(--ink-mid); }
 .schedule tr.derived td.num { font-size: 15px; font-weight: 500; color: var(--ink); }
 
-.lens { display: flex; border: var(--w-rule) solid var(--ink); width: fit-content; margin-top: 3px; }
+.lens { display: flex; border: 1px solid var(--rule-firm); width: fit-content; margin-top: 3px; }
 .lens button {
   font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
   padding: 5px 11px; border: 0; background: var(--paper); color: var(--ink-mid); cursor: pointer;
 }
-.lens button + button { border-left: var(--w-rule) solid var(--ink); }
+.lens button + button { border-left: 1px solid var(--rule-firm); }
 .lens button:hover { color: var(--ink); }
 .lens button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
-ol.notes { margin: 0; padding: 14px var(--pad) 16px 0; list-style: none; counter-reset: n; }
-ol.notes li { counter-increment: n; padding-left: calc(var(--pad) + 30px); position: relative; margin-bottom: 9px;
-              font-size: 15px; line-height: 1.6; }
+ol.notes { margin: 0; padding: 18px var(--pad) 22px 0; list-style: none; counter-reset: n;
+           columns: 2; column-gap: 46px; }
+@media (max-width: 900px) { ol.notes { columns: 1; } }
+ol.notes li { counter-increment: n; padding-left: calc(var(--pad) + 30px); position: relative;
+              margin-bottom: 13px; font-size: 15px; line-height: 1.6;
+              break-inside: avoid; -webkit-column-break-inside: avoid; }
 ol.notes li::before {
   content: counter(n, decimal-leading-zero); position: absolute; left: var(--pad); top: 0;
   font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-mid);
@@ -188,21 +193,25 @@ ol.notes li::before {
 }
 ol.notes li.warn, ol.notes li.warn::before { color: var(--red); }
 ol.notes li:last-child { margin-bottom: 0; }
+ol.notes li::marker { content: none; }
 
-.sheetdata { border-top: var(--w-frame) solid var(--ink); grid-template-columns: repeat(3, minmax(0,1fr)) auto; }
+.sheetdata { border-top: 1px solid var(--rule); grid-template-columns: repeat(3, minmax(0,1fr)) auto; }
 @media (max-width: 900px) {
+  /* the hairlines are the grid gap showing through, so an empty grid area
+     would read as a grey block; place every cell explicitly */
   .sheetdata { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .sheetdata .cell:nth-child(3) { grid-column: 1 / -1; }
   .sheetdata .cell.act { grid-column: 1 / -1; justify-content: center; }
 }
 .cell.act { display: flex; align-items: center; padding: 10px var(--pad); }
 .btn {
   font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink); background: var(--cta); border: var(--w-rule) solid var(--ink);
+  color: var(--ink); background: var(--cta); border: 1px solid var(--rule-firm);
   padding: 11px 22px; cursor: pointer; border-radius: 0; white-space: nowrap;
 }
 .btn:hover { background: #FBDC53; }
-.btn-quiet { background: var(--paper); font-size: 11px; padding: 5px 10px; letter-spacing: .08em; }
-.btn-quiet:hover { background: var(--desk); }
+.btn-quiet { background: var(--paper); font-size: 11px; padding: 5px 11px; letter-spacing: .08em; color: var(--ink-mid); }
+.btn-quiet:hover { background: var(--desk); color: var(--ink); }
 
 .colophon { max-width: var(--page); margin: 0 auto 40px; padding: 0 28px; font-size: 12px;
             color: var(--ink-mid); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -319,22 +328,12 @@ ol.notes li:last-child { margin-bottom: 0; }
       <h2 class="block-label">Notes</h2>
       <ol class="notes" id="notes" aria-live="polite"></ol>
     </section>
-    <section class="cell block">
-      <h2 class="block-label">Sheet</h2>
-      <div style="padding:14px var(--pad) 16px;">
-        <span class="k">Drawn</span><span class="v" id="sdLens">Mamiya 80</span>
-        <div style="height:14px"></div>
-        <span class="k">Scale</span><span class="v">1:1 &middot; mm</span>
-        <div style="height:14px"></div>
-        <span class="k">Thread</span><span class="v">5.00 / turn, single start</span>
-      </div>
-    </section>
   </div>
 
   <div class="cells sheetdata">
+    <div class="cell"><span class="k">Drawn</span><span class="v" id="sdLens">Mamiya 80</span></div>
     <div class="cell"><span class="k">Overall</span><span class="v" id="sdOverall">189.0 × 13.0</span></div>
     <div class="cell"><span class="k">Range</span><span class="v" id="sdRange">∞ – 1.44 m</span></div>
-    <div class="cell"><span class="k">Sheet</span><span class="v">1 of 1</span></div>
     <div class="cell act"><button class="btn" id="exportBtn" type="button">Export SVG</button></div>
   </div>
 </main>
