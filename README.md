@@ -53,5 +53,5 @@ ring, measured from where the flutes sit on the ribbed variant of the part.
 
 Page © Albert Cornelissen / IDENTIDEM.design.
 
-Inter and IBM Plex Mono are subset and self-hosted under the SIL Open Font
-License 1.1; the licence texts are in `assets/fonts/`.
+Saira Semi Condensed and Azeret Mono are subset and self-hosted under the SIL
+Open Font License 1.1; the licence texts are in `assets/fonts/`.
