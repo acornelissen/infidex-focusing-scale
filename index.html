@@ -64,9 +64,14 @@ body {
 .rig-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .rig-top a { display: block; line-height: 0; }
 /* the mark is black artwork on transparency, so reverse it out */
-.rig-top img { width: 46px; height: 46px; display: block; filter: invert(1); }
+.rig-top img { width: 84px; height: 84px; display: block; filter: invert(1); }
 .rig-title {
-  font-size: 19px; font-weight: 600; letter-spacing: .015em; margin: 0; color: #fff;
+  font-size: 40px; font-weight: 600; letter-spacing: -.005em; line-height: 1.05;
+  margin: 0; color: #fff;
+}
+@media (max-width: 560px) {
+  .rig-top img { width: 60px; height: 60px; }
+  .rig-title { font-size: 27px; }
 }
 .rig-title .thin { font-weight: 400; color: rgba(255,255,255,.5); }
 
@@ -162,22 +167,22 @@ ol.notes li.warn, ol.notes li.warn::before { color: var(--red); }
 ol.notes li:last-child { margin-bottom: 0; }
 ol.notes li::marker { content: none; }
 
-.sheetdata { border-top: 1px solid var(--rule); grid-template-columns: repeat(3, minmax(0,1fr)) auto; }
+.sheetdata { border-top: 1px solid var(--rule); grid-template-columns: repeat(3, minmax(0,1fr)); }
 @media (max-width: 900px) {
   /* the hairlines are the grid gap showing through, so an empty grid area
      would read as a grey block; place every cell explicitly */
   .sheetdata { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .sheetdata .cell:nth-child(3) { grid-column: 1 / -1; }
-  .sheetdata .cell.act { grid-column: 1 / -1; justify-content: center; }
 }
-.cell.act { display: flex; align-items: center; padding: 10px var(--pad); }
+.actions { display: flex; align-items: center; gap: 8px; }
 .btn {
   font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink); background: var(--cta); border: 1px solid var(--rule-firm);
   padding: 11px 22px; cursor: pointer; border-radius: 0; white-space: nowrap;
 }
 .btn:hover { background: #FBDC53; }
-.btn-quiet { background: var(--paper); font-size: 11px; padding: 5px 11px; letter-spacing: .08em; color: var(--ink-mid); }
+.btn-inline { font-size: 11px; letter-spacing: .12em; padding: 6px 13px; }
+.btn-quiet { background: var(--paper); color: var(--ink-mid); letter-spacing: .08em; }
 .btn-quiet:hover { background: var(--desk); color: var(--ink); }
 
 .colophon { max-width: var(--page); margin: 0 auto 48px; padding: 0 28px; font-size: 13px;
@@ -226,7 +231,12 @@ ol.notes li::marker { content: none; }
     </section>
 
     <section class="cell block">
-      <h2 class="block-label">Schedule <button class="btn btn-quiet" id="resetBtn" type="button">Reset</button></h2>
+      <h2 class="block-label">Schedule
+        <span class="actions">
+          <button class="btn btn-inline btn-quiet" id="resetBtn" type="button">Reset</button>
+          <button class="btn btn-inline" id="exportBtn" type="button">Export SVG</button>
+        </span>
+      </h2>
       <table class="schedule">
         <thead><tr><th scope="col">Parameter</th><th scope="col" class="num">Value</th><th scope="col"></th></tr></thead>
         <tbody>
@@ -285,7 +295,6 @@ ol.notes li::marker { content: none; }
     <div class="cell"><span class="k">Drawn</span><span class="v" id="sdLens">Mamiya 80</span></div>
     <div class="cell"><span class="k">Overall</span><span class="v" id="sdOverall">189.0 × 13.0</span></div>
     <div class="cell"><span class="k">Range</span><span class="v" id="sdRange">∞ – 1.44 m</span></div>
-    <div class="cell act"><button class="btn" id="exportBtn" type="button">Export SVG</button></div>
   </div>
 </main>
 
