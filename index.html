@@ -60,29 +60,18 @@ body {
 /* ===============================================================
    THE RIG — the scale at actual size, which is the whole point
    =============================================================== */
-.rig { background: var(--slate); color: #fff; padding: 26px 0 0; overflow: hidden; }
-.rig-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.rig { background: var(--slate); color: #fff; padding: 22px 0 0; overflow: hidden; }
+.rig-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .rig-top a { display: block; line-height: 0; }
 /* the mark is black artwork on transparency, so reverse it out */
-.rig-top img { width: 76px; height: 76px; display: block; filter: invert(1); }
-.stamp {
-  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .22em;
-  text-transform: uppercase; color: var(--cta);
-  border: 1px solid var(--cta); border-radius: 2px; padding: 5px 11px;
+.rig-top img { width: 46px; height: 46px; display: block; filter: invert(1); }
+.rig-title {
+  font-size: 19px; font-weight: 600; letter-spacing: .015em; margin: 0; color: #fff;
 }
-
-.mega {
-  font-size: clamp(46px, 12.5vw, 176px); font-weight: 600; line-height: .82;
-  letter-spacing: -.035em; text-transform: uppercase; margin: 22px 0 0; color: #fff;
-}
-.mega .thin { font-weight: 400; color: rgba(255,255,255,.42); }
-.rig-sub {
-  font-family: var(--mono); font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
-  color: rgba(255,255,255,.5); margin: 14px 0 0;
-}
+.rig-title .thin { font-weight: 400; color: rgba(255,255,255,.5); }
 
 /* the tape: mm ruler plus the strip, both at true size, scrolled if long */
-.tape-scroll { margin-top: 30px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+.tape-scroll { margin-top: 26px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
 .tape-scroll::-webkit-scrollbar { height: 8px; }
 .tape-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,.06); }
 .tape-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); }
@@ -96,28 +85,6 @@ body {
   font-family: var(--mono); font-size: 12px; letter-spacing: .04em; color: rgba(255,255,255,.62);
 }
 .rig-foot strong { color: #fff; font-weight: 600; }
-.linkish {
-  font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--cta); background: none; border: 0; border-bottom: 1px solid rgba(252,228,119,.5);
-  padding: 2px 0; cursor: pointer;
-}
-.linkish:hover { border-bottom-color: var(--cta); }
-
-/* calibration drawer */
-.cal { background: var(--slate-2); color: #fff; padding: 22px 0 26px; display: none; }
-.cal.open { display: block; }
-.cal h2 { font-size: 15px; font-weight: 600; margin: 0 0 6px; letter-spacing: .01em; }
-.cal p { margin: 0 0 16px; color: rgba(255,255,255,.66); font-size: 14px; max-width: 60ch; }
-.cal-row { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
-#card {
-  border: 1.5px solid var(--cta); border-radius: 4px; flex: none;
-  display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px 8px;
-  font-family: var(--mono); font-size: 9px; color: var(--cta); letter-spacing: .1em;
-}
-.cal-ctl { flex: 1 1 260px; min-width: 220px; }
-.cal-ctl input[type="range"] { width: 100%; accent-color: var(--cta); }
-.cal-read { font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,.6); margin-top: 6px; }
-
 /* ===============================================================
    THE SHEET — the working below
    =============================================================== */
@@ -213,9 +180,12 @@ ol.notes li::marker { content: none; }
 .btn-quiet { background: var(--paper); font-size: 11px; padding: 5px 11px; letter-spacing: .08em; color: var(--ink-mid); }
 .btn-quiet:hover { background: var(--desk); color: var(--ink); }
 
-.colophon { max-width: var(--page); margin: 0 auto 40px; padding: 0 28px; font-size: 12px;
-            color: var(--ink-mid); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.colophon a { color: var(--ink-mid); }
+.colophon { max-width: var(--page); margin: 0 auto 48px; padding: 0 28px; font-size: 13px;
+            color: var(--ink-mid); display: flex; justify-content: space-between; gap: 12px 34px; flex-wrap: wrap; }
+.colophon p { margin: 0; }
+.colophon .credits { display: flex; flex-direction: column; gap: 4px; }
+.colophon a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule-firm); }
+.colophon a:hover { border-bottom-color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -226,11 +196,8 @@ ol.notes li::marker { content: none; }
   <div class="wrap">
     <div class="rig-top">
       <a href="https://identidem.design"><img src="assets/logotext.png" width="800" height="800" alt="IDENTIDEM.design" /></a>
-      <span class="stamp">Actual size</span>
+      <h1 class="rig-title">Infidex 176&nbsp;V <span class="thin">focusing scale</span></h1>
     </div>
-
-    <h1 class="mega">Infidex 176&#8202;V<br /><span class="thin">focusing scale</span></h1>
-    <p class="rig-sub">Hold the focus ring against the screen</p>
   </div>
 
   <div class="wrap">
@@ -243,25 +210,9 @@ ol.notes li::marker { content: none; }
 
     <div class="rig-foot">
       <span><strong id="footSize">189.0 × 13.0 mm</strong> &middot; <span id="footRange">∞ – 1.44 m</span> &middot; <span id="footGap">2.6 mm spare on the barrel</span></span>
-      <button class="linkish" id="calToggle" type="button" aria-expanded="false" aria-controls="cal">Calibrate screen</button>
     </div>
   </div>
 </header>
-
-<section class="cal" id="cal">
-  <div class="wrap">
-    <h2>Make actual size actually actual</h2>
-    <p>Browsers guess at your screen's physical size and are usually wrong. Hold any bank card against the outline and drag until they match — every measurement above then renders true. Your setting is remembered on this device.</p>
-    <div class="cal-row">
-      <div id="card"><span>ID-1 &middot; 85.60 × 53.98</span></div>
-      <div class="cal-ctl">
-        <label for="calRange" class="k" style="color:rgba(255,255,255,.6)">Screen scale</label>
-        <input type="range" id="calRange" min="2.2" max="7.2" step="0.005" value="3.7795" />
-        <div class="cal-read"><span id="calRead">3.780</span> px per mm &middot; <button class="linkish" id="calReset" type="button" style="letter-spacing:.08em">Reset</button></div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <main class="sheet">
   <div class="cells upper">
@@ -339,8 +290,11 @@ ol.notes li::marker { content: none; }
 </main>
 
 <div class="colophon">
-  <span>IDENTIDEM.design &middot; Infidex 176&nbsp;V</span>
-  <span>Verify ∞ on ground glass before cutting</span>
+  <div class="credits">
+    <p>Camera: <a href="https://timetowaste.ru/en_infidex">Infidex 176 V</a>, an open source project by Time to Waste.</p>
+    <p>Scale generator after <a href="https://www.printables.com/model/1610905-parametric-focusing-scale-for-17-31-mm-m65-and-m77">Parametric Focusing Scale for 17–31 mm, M65 and M77</a> on Printables.</p>
+  </div>
+  <p>IDENTIDEM.design &middot; verify ∞ on ground glass before cutting</p>
 </div>
 
 <script>
@@ -353,9 +307,9 @@ ol.notes li::marker { content: none; }
   var STRIP_FACE  = "Saira SemiCondensed, Arial Narrow, Arial, sans-serif";
   var SYMBOL_FACE = "Verdana, DejaVu Sans, sans-serif";
 
-  var CSS_PX_PER_MM = 96 / 25.4;         // what a browser assumes, usually wrongly
-  var CARD_W = 85.60, CARD_H = 53.98;    // ISO 7810 ID-1, i.e. any bank card
-  var STORE_KEY = "infidex.pxPerMm";
+  // The rule and the strip are drawn in CSS millimetres. A browser assumes
+  // 96dpi, so this is close to life size rather than exactly it.
+  var pxPerMm = 96 / 25.4;
 
   var DEFAULTS = {
     focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4,
@@ -493,10 +447,6 @@ ol.notes li::marker { content: none; }
   // ---------------------------------------------------------------
   // The tape: a millimetre rule and the strip, both at true size
   // ---------------------------------------------------------------
-  var pxPerMm = CSS_PX_PER_MM;
-  try { var st = localStorage.getItem(STORE_KEY); if (st) pxPerMm = parseFloat(st) || CSS_PX_PER_MM; }
-  catch (e) { /* private browsing */ }
-
   function drawTape(s) {
     var wPx = s.stripLenMm * pxPerMm;
     var hPx = s.stripHeightMm * pxPerMm;
@@ -697,33 +647,6 @@ ol.notes li::marker { content: none; }
   }
 
   // ---------------------------------------------------------------
-  // Calibration
-  // ---------------------------------------------------------------
-  function applyCalibration() {
-    $("card").style.width = (CARD_W * pxPerMm) + "px";
-    $("card").style.height = (CARD_H * pxPerMm) + "px";
-    $("calRead").textContent = pxPerMm.toFixed(3);
-    $("calRange").value = pxPerMm;
-    if (current) drawTape(current);
-  }
-  $("calToggle").addEventListener("click", function () {
-    var open = $("cal").classList.toggle("open");
-    this.setAttribute("aria-expanded", String(open));
-    this.textContent = open ? "Done" : "Calibrate screen";
-    if (open) $("cal").scrollIntoView({ block: "nearest" });
-  });
-  $("calRange").addEventListener("input", function () {
-    pxPerMm = parseFloat(this.value) || CSS_PX_PER_MM;
-    try { localStorage.setItem(STORE_KEY, String(pxPerMm)); } catch (e) {}
-    applyCalibration();
-  });
-  $("calReset").addEventListener("click", function () {
-    pxPerMm = CSS_PX_PER_MM;
-    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
-    applyCalibration();
-  });
-
-  // ---------------------------------------------------------------
   // Turning the ring
   // ---------------------------------------------------------------
   (function wireDial() {
@@ -816,7 +739,6 @@ ol.notes li::marker { content: none; }
 
   syncLens();
   generate();
-  applyCalibration();
 })();
 </script>
 </body>
