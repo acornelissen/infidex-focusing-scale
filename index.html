@@ -239,6 +239,7 @@ ol.notes li::marker { content: none; }
       <h2 class="block-label">Schedule
         <span class="actions">
           <button class="btn btn-inline btn-quiet" id="resetBtn" type="button">Reset</button>
+          <button class="btn btn-inline btn-quiet" id="gerberBtn" type="button">Gerber</button>
           <button class="btn btn-inline" id="exportBtn" type="button">Export SVG</button>
         </span>
       </h2>
@@ -617,7 +618,8 @@ ol.notes li::marker { content: none; }
       { t: "Print at 100%. The exported SVG carries real millimetre dimensions, so do not let the print dialog scale it to fit." },
       { t: "Infinity is taken to sit at the zero-rotation stop. Check it on ground glass; if the ring racks in past infinity, enter the leftover extension against “Extension at infinity” and the whole scale shifts to match." },
       { t: "Wrap the strip on the smooth band of the focus ring, between the flutes. That band is 13.5 mm tall." },
-      { t: "The 55 mm and 80 mm builds share this focus ring and thread, so focal length is the only value that changes between them. The inner ring sets the flange distance: 41.70 mm for the 55, 36.10 mm for the 80." }
+      { t: "The 55 mm and 80 mm builds share this focus ring and thread, so focal length is the only value that changes between them. The inner ring sets the flange distance: 41.70 mm for the 55, 36.10 mm for the 80." },
+      { t: "Gerber gives you the same scale as a flexible PCB. Order it 1 layer, black coverlay, white silkscreen. The soldermask layer is empty on purpose — that is what leaves the strip black end to end." }
     ];
     if (s.maxAngle > 360) {
       notes.push({ warn: true, t: "Rotation covers " + (s.maxAngle / 360).toFixed(2) +
@@ -701,6 +703,253 @@ ol.notes li::marker { content: none; }
       if (handled) ev.preventDefault();
     });
   })();
+
+  // ---------------------------------------------------------------
+  // Gerber: the same scale as a black flex PCB with white silkscreen.
+  // Gerber has no text primitive, so the numerals are drawn as strokes
+  // with a round aperture, the way EDA tools render silkscreen.
+  // Glyphs are on a baseline-0, cap-height-1 grid.
+  // ---------------------------------------------------------------
+  function arc(cx, cy, rx, ry, a0, a1) {
+    var pts = [], steps = Math.max(6, Math.ceil(Math.abs(a1 - a0) / 12));
+    for (var i = 0; i <= steps; i++) {
+      var a = (a0 + (a1 - a0) * i / steps) * Math.PI / 180;
+      pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+    return pts;
+  }
+  function ell(cx, cy, rx, ry) { return arc(cx, cy, rx, ry, 0, 360); }
+
+  var GLYPHS = {
+    "0": { w: 0.60, p: [ell(0.30, 0.50, 0.25, 0.48)] },
+    "1": { w: 0.60, p: [[[0.08, 0.76], [0.30, 1.00], [0.30, 0.00]], [[0.06, 0.00], [0.54, 0.00]]] },
+    "2": { w: 0.60, p: [arc(0.30, 0.72, 0.25, 0.25, 200, -20).concat([[0.04, 0.00], [0.57, 0.00]])] },
+    "3": { w: 0.60, p: [arc(0.30, 0.735, 0.245, 0.245, 200, -70), arc(0.30, 0.255, 0.255, 0.255, 70, -200)] },
+    "4": { w: 0.62, p: [[[0.45, 1.00], [0.03, 0.27], [0.58, 0.27]], [[0.45, 0.00], [0.45, 1.00]]] },
+    "5": { w: 0.60, p: [[[0.52, 1.00], [0.13, 1.00], [0.11, 0.52]], arc(0.29, 0.29, 0.275, 0.275, 128, -128)] },
+    "6": { w: 0.60, p: [arc(0.32, 0.62, 0.30, 0.30, 90, 200), ell(0.30, 0.28, 0.26, 0.28)] },
+    "7": { w: 0.60, p: [[[0.05, 1.00], [0.56, 1.00], [0.22, 0.00]]] },
+    "8": { w: 0.60, p: [ell(0.30, 0.735, 0.225, 0.245), ell(0.30, 0.265, 0.26, 0.265)] },
+    "9": { w: 0.60, p: [arc(0.28, 0.38, 0.30, 0.30, 270, 20), ell(0.30, 0.72, 0.26, 0.26)] },
+    ".": { w: 0.30, dot: [0.15, 0.06] },
+    "m": { w: 0.80, p: [
+      [[0.05, 0.62], [0.05, 0.00]],
+      arc(0.22, 0.45, 0.17, 0.17, 180, 0), [[0.39, 0.45], [0.39, 0.00]],
+      arc(0.56, 0.45, 0.17, 0.17, 180, 0), [[0.73, 0.45], [0.73, 0.00]]
+    ] },
+    "∞": { w: 0.96, p: [(function () {
+      // Gerono lemniscate: a figure-of-eight without hand-plotting it.
+      // Tall enough to sit with the digits, or it reads as two circles.
+      var pts = [];
+      for (var i = 0; i <= 120; i++) {
+        var t = i / 120 * 2 * Math.PI;
+        pts.push([0.48 + 0.44 * Math.cos(t), 0.50 + 0.60 * Math.sin(t) * Math.cos(t)]);
+      }
+      return pts;
+    })()] }
+  };
+
+  function glyphOf(ch) { return GLYPHS[ch] || GLYPHS["0"]; }
+  var TRACK = 0.14;   // letter spacing, in cap heights
+
+  function textWidth(str, cap) {
+    var w = 0;
+    for (var i = 0; i < str.length; i++) w += glyphOf(str[i]).w + (i ? TRACK : 0);
+    return w * cap;
+  }
+
+  // Emit stroke polylines (and dots) for a string, centred on x, baseline at y.
+  function textStrokes(str, x, y, cap, w, out) {
+    var pen = x - textWidth(str, cap) / 2;
+    for (var i = 0; i < str.length; i++) {
+      var g = glyphOf(str[i]);
+      if (g.dot) out.dots.push({ at: [pen + g.dot[0] * cap, y + g.dot[1] * cap], d: w * 1.15 });
+      if (g.p) {
+        for (var j = 0; j < g.p.length; j++) {
+          out.strokes.push({ w: w, pts: g.p[j].map(function (pt) {
+            return [pen + pt[0] * cap, y + pt[1] * cap];
+          }) });
+        }
+      }
+      pen += (g.w + TRACK) * cap;
+    }
+  }
+
+  // Everything in millimetres, Y up, origin at the strip's bottom-left.
+  function scalePrimitives(s) {
+    var L = s.stripLenMm, H = s.stripHeightMm;
+    var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
+    var cap = fontSize * 0.72;
+    var labelTop = H - (tickMajor + LABEL_GAP * H);      // text hangs below the ticks
+    var baseline = labelTop - cap;
+    var xOf = function (a) { return s.endMarginMm + s.circumference * (a / 360); };
+    var out = { regions: [], strokes: [], dots: [], L: L, H: H };
+
+    function bar(x, w, top, len) {          // top measured down from the strip's top edge
+      out.regions.push([
+        [x - w / 2, H - top - len], [x + w / 2, H - top - len],
+        [x + w / 2, H - top], [x - w / 2, H - top]
+      ]);
+    }
+    bar(xOf(0), 1, 0, H);
+    bar(xOf(s.maxAngle), 1, 0, H);
+    // 0.22 reads as boldly as the printed strip and clears JLC's 0.15 minimum
+    var wText = 0.22, wInf = 0.30;
+    s.major.forEach(function (m) {
+      bar(xOf(m.angle), 1, 0, tickMajor);
+      textStrokes(formatMeters(m.distance), xOf(m.angle), baseline, cap, wText, out);
+    });
+    // On the SVG these two sit on their index bars with a black halo behind
+    // them. Silkscreen has no black ink, so white would meet white: shift
+    // each one clear of its bar instead, the way a lens barrel is engraved.
+    var clear = 0.5 + 1 / 2;
+    if (!s.spacer) {
+      textStrokes("∞", xOf(0) + clear + textWidth("∞", cap * 1.15) / 2,
+                  baseline, cap * 1.15, wInf, out);
+    }
+    textStrokes("m", xOf(s.maxAngle) - clear - textWidth("m", cap) / 2,
+                baseline, cap, wText, out);
+    return out;
+  }
+
+  // --- Gerber writing -------------------------------------------------
+  function gCoord(v) { return Math.round(v * 1e6); }
+  function gHead(fn) {
+    return ["%FSLAX46Y46*%", "%MOMM*%", "%TF.FileFunction," + fn + "*%",
+            "%TF.Part,Single*%", "%TF.SameCoordinates*%", "%LPD*%", "G01*"];
+  }
+  function gRegion(pts, o) {
+    o.push("G36*");
+    o.push("X" + gCoord(pts[0][0]) + "Y" + gCoord(pts[0][1]) + "D02*");
+    for (var i = 1; i < pts.length; i++) o.push("X" + gCoord(pts[i][0]) + "Y" + gCoord(pts[i][1]) + "D01*");
+    o.push("X" + gCoord(pts[0][0]) + "Y" + gCoord(pts[0][1]) + "D01*");
+    o.push("G37*");
+  }
+  function gPoly(pts, o) {
+    o.push("X" + gCoord(pts[0][0]) + "Y" + gCoord(pts[0][1]) + "D02*");
+    for (var i = 1; i < pts.length; i++) o.push("X" + gCoord(pts[i][0]) + "Y" + gCoord(pts[i][1]) + "D01*");
+  }
+
+  function buildGerber(s) {
+    var g = scalePrimitives(s), L = g.L, H = g.H, f = {};
+
+    // Silkscreen: ticks as regions so their widths stay exact, text as strokes
+    var o = gHead("Legend,Top");
+    // one aperture per distinct stroke width, assigned in order
+    var widths = [], code = {};
+    g.strokes.concat(g.dots.map(function (d) { return { w: d.d }; })).forEach(function (e) {
+      if (widths.indexOf(e.w) < 0) widths.push(e.w);
+    });
+    widths.forEach(function (w, i) {
+      code[w] = 10 + i;
+      o.push("%ADD" + (10 + i) + "C," + w.toFixed(6) + "*%");
+    });
+    o.push("D" + code[widths[0]] + "*");
+    g.regions.forEach(function (r) { gRegion(r, o); });
+    var cur = widths[0];
+    g.strokes.forEach(function (st) {
+      if (st.w !== cur) { cur = st.w; o.push("D" + code[cur] + "*"); }
+      gPoly(st.pts, o);
+    });
+    g.dots.forEach(function (d) {
+      if (d.d !== cur) { cur = d.d; o.push("D" + code[cur] + "*"); }
+      o.push("X" + gCoord(d.at[0]) + "Y" + gCoord(d.at[1]) + "D03*");
+    });
+    o.push("M02*");
+    f["GTO"] = o.join("\n") + "\n";
+
+    // Soldermask defines openings, so an empty layer means full coverage,
+    // which is what makes the finished strip black end to end.
+    f["GTS"] = gHead("Soldermask,Top").concat(["M02*"]).join("\n") + "\n";
+
+    // Copper: a plain pour, inset from the edge. Never seen; it just gives
+    // the fab a normal flex stack rather than coverlay on bare polyimide.
+    var c = gHead("Copper,L1,Top"), i = 0.5;
+    c.push("%ADD10C,0.100000*%", "D10*");
+    gRegion([[i, i], [L - i, i], [L - i, H - i], [i, H - i]], c);
+    c.push("M02*");
+    f["GTL"] = c.join("\n") + "\n";
+
+    var p = gHead("Profile,NP");
+    p.push("%ADD10C,0.050000*%", "D10*");
+    gPoly([[0, 0], [L, 0], [L, H], [0, H], [0, 0]], p);
+    p.push("M02*");
+    f["GKO"] = p.join("\n") + "\n";
+
+    f["DRL"] = ["M48", "FMAT,2", "METRIC,TZ", "%", "M30", ""].join("\n");
+    return f;
+  }
+
+  // --- minimal store-only ZIP ----------------------------------------
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function zip(entries) {
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0;
+    function u16(v) { return [v & 255, (v >>> 8) & 255]; }
+    function u32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+    entries.forEach(function (e) {
+      var name = enc.encode(e.name), data = enc.encode(e.data), crc = crc32(data);
+      var local = [].concat(u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+                            u32(crc), u32(data.length), u32(data.length),
+                            u16(name.length), u16(0));
+      parts.push(new Uint8Array(local), name, data);
+      central.push([].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+                             u32(crc), u32(data.length), u32(data.length),
+                             u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)));
+      central[central.length - 1].name = name;
+      offset += local.length + name.length + data.length;
+    });
+    var cenParts = [], cenLen = 0;
+    central.forEach(function (c) {
+      cenParts.push(new Uint8Array(c), c.name);
+      cenLen += c.length + c.name.length;
+    });
+    var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0),
+      u16(entries.length), u16(entries.length), u32(cenLen), u32(offset), u16(0)));
+    return new Blob(parts.concat(cenParts, [end]), { type: "application/zip" });
+  }
+
+  function download(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  $("gerberBtn").addEventListener("click", function () {
+    var f = buildGerber(current), base = "infidex-176v-focusing-scale";
+    var readme =
+      "Infidex 176 V focusing scale, " + current.stripLenMm.toFixed(1) + " x " +
+      current.stripHeightMm.toFixed(1) + " mm.\r\n\r\n" +
+      "Order as: flexible PCB, 1 layer, black coverlay, white silkscreen.\r\n" +
+      "Units are millimetres; do not let anything rescale the files.\r\n\r\n" +
+      "GTL  copper, a plain pour inset 0.5 mm from the edge\r\n" +
+      "GTS  soldermask, intentionally empty so the coverlay covers everything\r\n" +
+      "GTO  silkscreen, the scale itself\r\n" +
+      "GKO  board outline\r\n" +
+      "DRL  drill, no holes in this board\r\n";
+    download(zip([
+      { name: base + ".GTL", data: f.GTL },
+      { name: base + ".GTS", data: f.GTS },
+      { name: base + ".GTO", data: f.GTO },
+      { name: base + ".GKO", data: f.GKO },
+      { name: base + ".DRL", data: f.DRL },
+      { name: "README.txt", data: readme }
+    ]), base + "-gerber.zip");
+  });
 
   // ---------------------------------------------------------------
   // Export

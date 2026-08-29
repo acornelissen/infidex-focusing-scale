@@ -40,6 +40,39 @@ The two inner rings in the Infidex STL set — 41.70 mm for the 55 mm lens, 36.1
 for the 80 mm — position each lens so infinity still lands, so focal length is the
 only thing that changes between the two builds.
 
+## Gerber output
+
+The Gerber button produces a zip of the same scale as a flexible PCB, which
+gives you a far more durable strip than paper: white silkscreen on black
+coverlay is exactly the artefact.
+
+Order it as **1 layer, flexible, black coverlay, white silkscreen**. The set is
+one layer only so the fab's parser doesn't read it as two.
+
+| File | |
+|---|---|
+| `.GTL` | copper, a plain pour inset 0.5 mm from the edge |
+| `.GTS` | soldermask, deliberately empty |
+| `.GTO` | silkscreen, the scale itself |
+| `.GKO` | board outline |
+| `.DRL` | drill, no holes |
+
+The empty soldermask layer is the trick: Gerber's mask layer defines *openings*,
+not coverage, so an empty one means the coverlay covers everything.
+
+The copper does nothing electrically. It is there so the fab builds a normal
+flex stack rather than laminating coverlay onto bare polyimide, which their
+checks may query. It bends fine at a 30 mm radius for a one-time install.
+
+Gerber has no text primitive, so the numerals are drawn as single-stroke
+polylines at 0.22 mm — above JLCPCB's 0.15 mm silkscreen minimum, and the 2.3 mm
+cap height clears their 0.8 mm text minimum comfortably. The ∞ is a Gerono
+lemniscate rather than hand-plotted points.
+
+On the SVG the ∞ and the `m` sit on their index bars with a black halo behind
+them. Silkscreen has no black ink, so on the PCB they are shifted clear of the
+bars instead.
+
 ## Before you cut
 
 Infinity is assumed to sit at the zero-rotation stop. Check it on ground glass
