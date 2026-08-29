@@ -179,7 +179,51 @@ ol.notes li::marker { content: none; }
   .sheetdata { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .sheetdata .cell:nth-child(3) { grid-column: 1 / -1; }
 }
-.actions { display: flex; align-items: center; gap: 8px; }
+.actions { display: flex; align-items: center; gap: 8px; position: relative; }
+.pair { display: flex; align-items: center; gap: 4px; }
+.help {
+  font-family: var(--mono); font-size: 12px; font-weight: 500; line-height: 1;
+  width: 22px; height: 22px; padding: 0; cursor: pointer; color: var(--ink-mid);
+  background: var(--paper); border: 1px solid var(--rule-firm); border-radius: 50%;
+}
+.help:hover { color: var(--ink); border-color: var(--ink-mid); }
+.help[aria-expanded="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.pop {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 40;
+  width: min(430px, calc(100vw - 32px));
+  background: var(--paper); border: 1px solid var(--ink);
+  padding: 18px 20px 20px; text-align: left; text-transform: none; letter-spacing: normal;
+  font-weight: 400; font-size: 14px; line-height: 1.55; color: var(--ink);
+  max-height: min(70vh, 560px); overflow-y: auto;
+}
+.pop[hidden] { display: none; }
+.pop h3 {
+  margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: .19em;
+  text-transform: uppercase; color: var(--ink-mid);
+}
+.pop dl { margin: 0 0 14px; display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; }
+.pop dt { color: var(--ink-mid); font-size: 13px; white-space: nowrap; }
+.pop dd { margin: 0; font-family: var(--mono); font-size: 13px; letter-spacing: -.01em; }
+.pop ol { margin: 0 0 14px; padding-left: 18px; }
+.pop li { margin-bottom: 7px; }
+.pop p { margin: 0 0 11px; }
+.pop p:last-child, .pop ol:last-child, .pop dl:last-child { margin-bottom: 0; }
+.pop .flag { color: var(--red); }
+.pop .close {
+  position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; padding: 0;
+  border: 0; background: none; color: var(--ink-mid); cursor: pointer;
+  font-family: var(--mono); font-size: 15px; line-height: 1;
+}
+.pop .close:hover { color: var(--ink); }
+/* Anchoring to the right-aligned button group leaves no room on a narrow
+   screen, so drop the panel to a fixed sheet instead. */
+@media (max-width: 720px) {
+  .pop {
+    position: fixed; inset: auto 12px 12px 12px; width: auto;
+    max-height: 68vh; box-shadow: 0 0 0 100vmax rgba(18,18,18,.28);
+  }
+}
 .btn {
   font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink); background: var(--cta); border: 1px solid var(--rule-firm);
@@ -239,8 +283,62 @@ ol.notes li::marker { content: none; }
       <h2 class="block-label">Schedule
         <span class="actions">
           <button class="btn btn-inline btn-quiet" id="resetBtn" type="button">Reset</button>
-          <button class="btn btn-inline btn-quiet" id="gerberBtn" type="button">Gerber</button>
-          <button class="btn btn-inline" id="exportBtn" type="button">Export SVG</button>
+          <span class="pair">
+            <button class="btn btn-inline btn-quiet" id="gerberBtn" type="button">Gerber</button>
+            <button class="help" type="button" aria-expanded="false" aria-controls="gerberHelp"
+                    aria-label="How to order the Gerber files as a PCB">?</button>
+          </span>
+          <span class="pair">
+            <button class="btn btn-inline" id="exportBtn" type="button">Export SVG</button>
+            <button class="help" type="button" aria-expanded="false" aria-controls="svgHelp"
+                    aria-label="How to print the SVG">?</button>
+          </span>
+
+          <div class="pop" id="gerberHelp" hidden="hidden">
+            <button class="close" type="button" aria-label="Close">×</button>
+            <h3>Ordering at JLCPCB</h3>
+            <dl>
+              <dt>Base material</dt><dd>Flex</dd>
+              <dt>Layers</dt><dd>1</dd>
+              <dt>Dimensions</dt><dd><span class="hDims">189.0 × 13.0</span> mm</dd>
+              <dt>Quantity</dt><dd>5 (their minimum)</dd>
+              <dt>Coverlay</dt><dd>Black</dd>
+              <dt>Silkscreen</dt><dd>White</dd>
+              <dt>Copper weight</dt><dd>18 µm (0.5 oz)</dd>
+              <dt>Thickness</dt><dd>0.11 mm</dd>
+              <dt>Surface finish</dt><dd>ENIG 1 u"</dd>
+              <dt>Stiffener</dt><dd>3M468 tape</dd>
+              <dt>EMI shielding</dt><dd>No</dd>
+            </dl>
+            <p>The lighter copper and thinnest dielectric both help it wrap a 61 mm barrel. The
+               surface finish is a required field but does nothing here, as no copper is exposed.</p>
+            <p><strong>3M468 under Stiffener is worth taking.</strong> It is factory-applied
+               double-sided adhesive, so the strips arrive ready to peel and wrap rather than
+               leaving you to align 189 mm of wet glue.</p>
+            <p class="flag">Expect a DFM query. No exposed copper and an empty soldermask layer is
+               unusual enough that their engineers may email first. It is a legend-only decorative
+               flex with no electrical function: the copper pour is deliberate, and the empty mask
+               layer is what leaves the coverlay covering the whole strip.</p>
+            <p>Check their Gerber preview before paying — the silkscreen layer should show the
+               scale, and the outline should read <span class="hDims">189.0 × 13.0</span> mm.</p>
+          </div>
+
+          <div class="pop" id="svgHelp" hidden="hidden">
+            <button class="close" type="button" aria-label="Close">×</button>
+            <h3>Printing the strip</h3>
+            <ol>
+              <li>Print at <strong>100%</strong>. Turn off “fit to page” and “scale to fit” — the
+                  file carries real millimetre dimensions and any scaling ruins the scale.</li>
+              <li><strong>Measure before you cut.</strong> The strip should be exactly
+                  <span class="hDims">189.0 × 13.0</span> mm. If it isn't, something rescaled it.</li>
+              <li>Laser on matte white adhesive label stock gives the crispest result. Inkjet will
+                  bleed on this much solid black and the tick edges go soft.</li>
+              <li>Cut on the outline.</li>
+              <li>Wrap it with the ∞ mark at your infinity index and work round from there.</li>
+            </ol>
+            <p>It is a lot of solid black for a desktop printer. If yours struggles to lay it down
+               evenly, the Gerber route gives a far better strip — and a more durable one.</p>
+          </div>
         </span>
       </h2>
       <table class="schedule">
@@ -611,6 +709,10 @@ ol.notes li::marker { content: none; }
     $("dGap").textContent = "(" + (s.gap >= 0 ? "" : "−") + Math.abs(s.gap).toFixed(1) + ")";
     $("dRange").textContent = "(" + shortDistance(s.farthest) + " – " + shortDistance(s.nearest) + ")";
     $("sdOverall").textContent = s.stripLenMm.toFixed(1) + " × " + s.stripHeightMm.toFixed(1);
+    var dims = s.stripLenMm.toFixed(1) + " × " + s.stripHeightMm.toFixed(1);
+    Array.prototype.forEach.call(document.querySelectorAll(".hDims"), function (n) {
+      n.textContent = dims;
+    });
     $("sdRange").textContent = range;
     $("sdLens").textContent = ({ 80: "Mamiya 80", 55: "Mamiya 55" })[s.f] || (s.f + " mm lens");
 
@@ -971,6 +1073,45 @@ ol.notes li::marker { content: none; }
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
+
+  // ---------------------------------------------------------------
+  // Help panels
+  // ---------------------------------------------------------------
+  (function wireHelp() {
+    var triggers = Array.prototype.slice.call(document.querySelectorAll(".help"));
+
+    function close(t) {
+      t.setAttribute("aria-expanded", "false");
+      $(t.getAttribute("aria-controls")).hidden = true;
+    }
+    function closeAll(except) {
+      triggers.forEach(function (t) { if (t !== except) close(t); });
+    }
+
+    triggers.forEach(function (t) {
+      var panel = $(t.getAttribute("aria-controls"));
+      t.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var open = t.getAttribute("aria-expanded") === "true";
+        closeAll(t);
+        t.setAttribute("aria-expanded", String(!open));
+        panel.hidden = open;
+      });
+      panel.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      panel.querySelector(".close").addEventListener("click", function () {
+        close(t);
+        t.focus();
+      });
+    });
+
+    document.addEventListener("click", function () { closeAll(null); });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Escape") return;
+      triggers.forEach(function (t) {
+        if (t.getAttribute("aria-expanded") === "true") { close(t); t.focus(); }
+      });
+    });
+  })();
 
   // ---------------------------------------------------------------
   // Schedule wiring
