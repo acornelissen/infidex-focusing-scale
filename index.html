@@ -210,6 +210,8 @@ ol.notes li::marker { content: none; }
 .pop p { margin: 0 0 11px; }
 .pop p:last-child, .pop ol:last-child, .pop dl:last-child { margin-bottom: 0; }
 .pop .flag { color: var(--red); }
+.pop code { font-family: var(--mono); font-size: 12px; background: var(--desk); padding: 1px 4px; }
+.pop em { font-style: normal; text-decoration: underline; text-underline-offset: 2px; }
 .pop .close {
   position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; padding: 0;
   border: 0; background: none; color: var(--ink-mid); cursor: pointer;
@@ -314,7 +316,11 @@ ol.notes li::marker { content: none; }
                surface finish is a required field but does nothing here, as no copper is exposed.</p>
             <p><strong>3M468 under Stiffener is worth taking.</strong> It is factory-applied
                double-sided adhesive, so the strips arrive ready to peel and wrap rather than
-               leaving you to align 189 mm of wet glue.</p>
+               leaving you to align a long strip of wet glue. The zip carries a
+               <code>Bottom Stiffener.GBR</code> layer marking where it goes — selecting the
+               option alone isn't enough, JLC need the area too.</p>
+            <p class="flag">If you order <em>without</em> the tape, delete that file first, or
+               the layer and the order won't match and they will query it the other way.</p>
             <p class="flag">Expect a DFM query. No exposed copper and an empty soldermask layer is
                unusual enough that their engineers may email first. It is a legend-only decorative
                flex with no electrical function: the copper pour is deliberate, and the empty mask
@@ -972,6 +978,15 @@ ol.notes li::marker { content: none; }
     c.push("M02*");
     f["GTL"] = c.join("\n") + "\n";
 
+    // The 3M tape goes on the back, against the barrel, so this is a bottom
+    // stiffener: a filled area inset far enough not to overhang after routing.
+    var st = gHead("Other,Stiffener"), si = 0.3;
+    st.splice(1, 0, "G04 Bottom stiffener - area for 3M468 adhesive backing*");
+    st.push("%ADD10C,0.100000*%", "D10*");
+    gRegion([[si, si], [L - si, si], [L - si, H - si], [si, H - si]], st);
+    st.push("M02*");
+    f["STIFF"] = st.join("\n") + "\n";
+
     var p = gHead("Profile,NP");
     p.push("%ADD10C,0.050000*%", "D10*");
     gPoly([[0, 0], [L, 0], [L, H], [0, H], [0, 0]], p);
@@ -1042,13 +1057,18 @@ ol.notes li::marker { content: none; }
       "GTS  soldermask, intentionally empty so the coverlay covers everything\r\n" +
       "GTO  silkscreen, the scale itself\r\n" +
       "GKO  board outline\r\n" +
-      "DRL  drill, no holes in this board\r\n";
+      "DRL  drill, no holes in this board\r\n\r\n" +
+      "Bottom Stiffener.GBR marks where the 3M468 adhesive goes: the whole\r\n" +
+      "back face, inset 0.3 mm so it cannot overhang after routing.\r\n" +
+      "If you order WITHOUT the 3M tape option, delete that file, or the\r\n" +
+      "stiffener layer and the order will not match.\r\n";
     download(zip([
       { name: base + ".GTL", data: f.GTL },
       { name: base + ".GTS", data: f.GTS },
       { name: base + ".GTO", data: f.GTO },
       { name: base + ".GKO", data: f.GKO },
       { name: base + ".DRL", data: f.DRL },
+      { name: "Bottom Stiffener.GBR", data: f.STIFF },
       { name: "README.txt", data: readme }
     ]), base + "-gerber.zip");
   });

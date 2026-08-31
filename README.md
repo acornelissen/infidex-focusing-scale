@@ -56,6 +56,14 @@ one layer only so the fab's parser doesn't read it as two.
 | `.GTO` | silkscreen, the scale itself |
 | `.GKO` | board outline |
 | `.DRL` | drill, no holes |
+| `Bottom Stiffener.GBR` | where the 3M468 adhesive goes |
+
+If you take the 3M468 tape option under Stiffener, JLC need the stiffener *area*
+as well as the order option — selecting one without the other gets the file
+queried. That layer marks the whole back face, inset 0.3 mm so it cannot
+overhang after routing. There is no standard extension for a stiffener layer, so
+the filename says what it is, since a person reads it. Order without the tape and
+you should delete that file.
 
 The empty soldermask layer is the trick: Gerber's mask layer defines *openings*,
 not coverage, so an empty one means the coverlay covers everything.
