@@ -125,7 +125,7 @@ Open Font License 1.1; the licence texts are in `assets/fonts/`.
 
 The camera is [Infidex 176 V](https://github.com/max05210238/Infidex_176_V), an
 open source 3D printed panoramic film camera by
-Denis Aminev (Time to Waste).
+[Denis Aminev (Time to Waste)](https://www.youtube.com/@time_to_waste).
 
 The scale arithmetic follows [Parametric Focusing Scale for 17–31 mm, M65 and
 M77](https://www.printables.com/model/1610905-parametric-focusing-scale-for-17-31-mm-m65-and-m77)
