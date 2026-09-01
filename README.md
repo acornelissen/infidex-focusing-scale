@@ -81,6 +81,22 @@ On the SVG the ∞ and the `m` sit on their index bars with a black halo behind
 them. Silkscreen has no black ink, so on the PCB they are shifted clear of the
 bars instead.
 
+## Which way round
+
+The scale has a handedness. Once the ticks face the index and the numbers read
+upright, the direction ∞ runs round the barrel is fixed, and a mirrored strip
+cannot be rescued by rewrapping it — the numbers would come out inverted or
+facing inwards.
+
+Which way is correct depends on where your index mark sits relative to the focus
+ring, which isn't in the STLs, so it is a setting rather than an assumption:
+**Close focus turns → ACW / CW**, seen from the front of the lens. View A is
+drawn from the front too, so it shows you what you have chosen.
+
+To check: set the helicoid to infinity, turn toward close focus, and watch which
+way the ring travels past the index. The marks after ∞ must be on the side that
+arrives next.
+
 ## Before you cut
 
 Infinity is assumed to sit at the zero-rotation stop. Check it on ground glass

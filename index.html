@@ -148,14 +148,15 @@ table.schedule { width: 100%; border-collapse: collapse; }
 .schedule tr.derived td { color: var(--ink-mid); }
 .schedule tr.derived td.num { font-size: 15px; font-weight: 500; color: var(--ink); }
 
-.lens { display: flex; border: 1px solid var(--rule-firm); width: fit-content; margin-top: 3px; }
-.lens button {
+.seg { display: flex; border: 1px solid var(--rule-firm); width: fit-content; margin-top: 3px; }
+.schedule td .dirsel { margin: 0 0 0 auto; }
+.seg button {
   font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
   padding: 5px 11px; border: 0; background: var(--paper); color: var(--ink-mid); cursor: pointer;
 }
-.lens button + button { border-left: 1px solid var(--rule-firm); }
-.lens button:hover { color: var(--ink); }
-.lens button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button + button { border-left: 1px solid var(--rule-firm); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
 ol.notes { margin: 0; padding: 18px var(--pad) 22px 0; list-style: none; counter-reset: n;
            columns: 2; column-gap: 46px; }
@@ -273,7 +274,7 @@ ol.notes li::marker { content: none; }
 <main class="sheet">
   <div class="cells upper">
     <section class="cell block">
-      <h2 class="block-label">View A <span class="dash">—</span> focus ring, plan</h2>
+      <h2 class="block-label">View A <span class="dash">—</span> focus ring, from the front</h2>
       <div class="view-body">
         <svg id="dial" viewBox="0 0 400 404" tabindex="0" role="slider"
              aria-label="Focus ring. Drag or use the arrow keys to turn it."
@@ -352,7 +353,7 @@ ol.notes li::marker { content: none; }
         <tbody>
           <tr>
             <td class="par"><label for="focal">Focal length</label>
-              <span class="note-txt"><span class="lens" role="group" aria-label="Taking lens"><button type="button" data-focal="80" aria-pressed="true">80</button><button type="button" data-focal="55" aria-pressed="false">55</button></span></span></td>
+              <span class="note-txt"><span class="seg lens" role="group" aria-label="Taking lens"><button type="button" data-focal="80" aria-pressed="true">80</button><button type="button" data-focal="55" aria-pressed="false">55</button></span></span></td>
             <td class="num"><input type="number" id="focal" value="80" step="0.1" min="10" /></td>
             <td class="unit">mm</td>
           </tr>
@@ -367,6 +368,13 @@ ol.notes li::marker { content: none; }
               <span class="note-txt">measured on the Infidex focus ring</span></td>
             <td class="num"><input type="number" id="lead" value="5" step="0.1" min="0.01" /></td>
             <td class="unit">mm/turn</td>
+          </tr>
+          <tr>
+            <td class="par">Close focus turns
+              <span class="note-txt">seen from the front of the lens</span></td>
+            <td class="num" colspan="2">
+              <span class="seg dirsel" role="group" aria-label="Direction the ring turns for closer focus"><button type="button" data-dir="acw" aria-pressed="true">ACW</button><button type="button" data-dir="cw" aria-pressed="false">CW</button></span>
+            </td>
           </tr>
           <tr><td class="par"><label for="rotation">Rotation covered</label></td>
               <td class="num"><input type="number" id="rotation" value="340" step="1" min="1" max="1440" /></td>
@@ -431,7 +439,7 @@ ol.notes li::marker { content: none; }
   var pxPerMm = 96 / 25.4;
 
   var DEFAULTS = {
-    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4,
+    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4, dir: "acw",
     angles: [20, 40, 60, 85, 115, 150, 190, 235, 280, 320]
   };
 
@@ -471,6 +479,15 @@ ol.notes li::marker { content: none; }
     var circumference = Math.PI * barrelDia;
     var stripLenMm = circumference * (maxAngle / 360) + 2 * endMarginMm;
 
+    // Which way the ring turns for closer focus, seen from the front. It sets
+    // the handedness of the whole scale: mirrored, the strip is unusable, and
+    // no amount of rotating it on the barrel will fix that.
+    var cw = document.querySelector('.dirsel button[aria-pressed="true"]').dataset.dir === "cw";
+    function xOf(a) {
+      var x = endMarginMm + circumference * (a / 360);
+      return cw ? stripLenMm - x : x;
+    }
+
     function distanceFromAngle(a) {
       var v = f + (fullExtension * (a / maxAngle) + spacer);
       return (f * v) / (v - f);
@@ -507,6 +524,7 @@ ol.notes li::marker { content: none; }
       stripHeightMm: stripHeightMm, endMarginMm: endMarginMm,
       fullExtension: fullExtension, circumference: circumference,
       stripLenMm: stripLenMm, gap: circumference - stripLenMm, major: major,
+      cw: cw, sgn: cw ? -1 : 1, xOf: xOf,
       distanceFromAngle: distanceFromAngle, angleFromDistance: angleFromDistance,
       farthest: distanceFromAngle(0), nearest: distanceFromAngle(maxAngle)
     };
@@ -530,7 +548,7 @@ ol.notes li::marker { content: none; }
     var L = s.stripLenMm * MM, H = s.stripHeightMm * MM;
     var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
     var labelBaseline = tickMajor + LABEL_GAP * H + fontSize;
-    var xOf = function (a) { return (s.endMarginMm + s.circumference * (a / 360)) * MM; };
+    var xOf = function (a) { return s.xOf(a) * MM; };
 
     el("rect", { x: 0, y: 0, width: L, height: H, fill: "#000000", "stroke-width": 0 }, parent);
 
@@ -659,11 +677,15 @@ ol.notes li::marker { content: none; }
     el("circle", { cx: CX, cy: CY, r: R, fill: "#E4E4E4" }, svg);
     el("circle", { cx: CX, cy: CY, r: rIn, fill: "#FFFFFF" }, svg);
 
-    var g = el("g", { transform: "rotate(" + (-ringAngle) + " " + CX + " " + CY + ")" }, svg);
+    var sgn = s.sgn;
+    var g = el("g", { transform: "rotate(" + (-sgn * ringAngle) + " " + CX + " " + CY + ")" }, svg);
     var marg = (s.endMarginMm / s.circumference) * 360;
-    el("path", { d: annulusSector(CX, CY, R, rIn, -marg, s.maxAngle + marg), fill: "#121212" }, g);
+    var a0 = sgn > 0 ? -marg : -(s.maxAngle + marg);
+    var a1 = sgn > 0 ? s.maxAngle + marg : marg;
+    el("path", { d: annulusSector(CX, CY, R, rIn, a0, a1), fill: "#121212" }, g);
 
-    function mark(a, frac, w) {
+    function mark(deg, frac, w) {
+      var a = sgn * deg;
       var p1 = polar(CX, CY, R, a), p2 = polar(CX, CY, R - band * frac, a);
       el("line", { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: "#FFFFFF", "stroke-width": w }, g);
     }
@@ -671,12 +693,13 @@ ol.notes li::marker { content: none; }
     mark(0, 1, pxMm); mark(s.maxAngle, 1, pxMm);
     s.major.forEach(function (m) {
       mark(m.angle, TICK_MAJOR, pxMm);
-      var p = polar(CX, CY, R - band * (TICK_MAJOR + LABEL_GAP) - fontSize * .35, m.angle);
+      var la = sgn * m.angle;
+      var p = polar(CX, CY, R - band * (TICK_MAJOR + LABEL_GAP) - fontSize * .35, la);
       txt(formatMeters(m.distance), {
         x: p[0], y: p[1], fill: "#FFFFFF", "font-size": fontSize,
         "font-family": "Azeret Mono, monospace", "font-weight": "500",
         "text-anchor": "middle", "dominant-baseline": "middle",
-        transform: "rotate(" + m.angle + " " + p[0] + " " + p[1] + ")"
+        transform: "rotate(" + la + " " + p[0] + " " + p[1] + ")"
       }, g);
     });
 
@@ -727,7 +750,8 @@ ol.notes li::marker { content: none; }
       { t: "Infinity is taken to sit at the zero-rotation stop. Check it on ground glass; if the ring racks in past infinity, enter the leftover extension against “Extension at infinity” and the whole scale shifts to match." },
       { t: "Wrap the strip on the smooth band of the focus ring, between the flutes. That band is 13.5 mm tall." },
       { t: "The 55 mm and 80 mm builds share this focus ring and thread, so focal length is the only value that changes between them. The inner ring sets the flange distance: 41.70 mm for the 55, 36.10 mm for the 80." },
-      { t: "Gerber gives you the same scale as a flexible PCB. Order it 1 layer, black coverlay, white silkscreen. The soldermask layer is empty on purpose — that is what leaves the strip black end to end." }
+      { t: "Gerber gives you the same scale as a flexible PCB. Order it 1 layer, black coverlay, white silkscreen. The soldermask layer is empty on purpose — that is what leaves the strip black end to end." },
+      { t: "Check the direction before you commit to anything. Set the helicoid to infinity, turn toward close focus, and watch which way the ring travels past the index: the marks after ∞ have to be on the side that arrives next. Mirrored, the strip cannot be salvaged by rewrapping — the numbers would end up inverted or facing inwards — so it has to be regenerated." }
     ];
     if (s.maxAngle > 360) {
       notes.push({ warn: true, t: "Rotation covers " + (s.maxAngle / 360).toFixed(2) +
@@ -890,7 +914,7 @@ ol.notes li::marker { content: none; }
     var cap = fontSize * 0.72;
     var labelTop = H - (tickMajor + LABEL_GAP * H);      // text hangs below the ticks
     var baseline = labelTop - cap;
-    var xOf = function (a) { return s.endMarginMm + s.circumference * (a / 360); };
+    var xOf = s.xOf;
     var out = { regions: [], strokes: [], dots: [], L: L, H: H };
 
     function bar(x, w, top, len) {          // top measured down from the strip's top edge
@@ -912,10 +936,10 @@ ol.notes li::marker { content: none; }
     // each one clear of its bar instead, the way a lens barrel is engraved.
     var clear = 0.5 + 1 / 2;
     if (!s.spacer) {
-      textStrokes("∞", xOf(0) + clear + textWidth("∞", cap * 1.15) / 2,
+      textStrokes("∞", xOf(0) + s.sgn * (clear + textWidth("∞", cap * 1.15) / 2),
                   baseline, cap * 1.15, wInf, out);
     }
-    textStrokes("m", xOf(s.maxAngle) - clear - textWidth("m", cap) / 2,
+    textStrokes("m", xOf(s.maxAngle) - s.sgn * (clear + textWidth("m", cap) / 2),
                 baseline, cap, wText, out);
     return out;
   }
@@ -1147,10 +1171,21 @@ ol.notes li::marker { content: none; }
   lensButtons.forEach(function (b) {
     b.addEventListener("click", function () { $("focal").value = b.dataset.focal; syncLens(); generate(); });
   });
+
+  var dirButtons = Array.prototype.slice.call(document.querySelectorAll(".dirsel button"));
+  dirButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      dirButtons.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      generate();
+    });
+  });
   $("focal").addEventListener("input", syncLens);
   $("resetBtn").addEventListener("click", function () {
     ["focal", "spacer", "lead", "rotation", "barrel", "height", "margin"].forEach(function (id) {
       $(id).value = DEFAULTS[id];
+    });
+    dirButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.dir === DEFAULTS.dir));
     });
     ringAngle = 0; syncLens(); generate();
   });
