@@ -1,7 +1,7 @@
 # Infidex 176 V — Focusing Scale Generator
 
 A generator for the focusing scale strip on the
-[Infidex 176 V](https://timetowaste.ru/en_infidex) helicoid. The strip is drawn
+[Infidex 176 V](https://github.com/max05210238/Infidex_176_V) helicoid. The strip is drawn
 against a millimetre rule so you can read its real length at a glance, the focus
 ring can be turned to check the marks land where you expect, and the export is a
 1:1 SVG ready to print and wrap.
@@ -123,8 +123,9 @@ Open Font License 1.1; the licence texts are in `assets/fonts/`.
 
 ## Credits
 
-The camera is [Infidex 176 V](https://timetowaste.ru/en_infidex), an open source
-3D printed panoramic film camera by Time to Waste.
+The camera is [Infidex 176 V](https://github.com/max05210238/Infidex_176_V), an
+open source 3D printed panoramic film camera by
+[Denis Aminev (Time to Waste)](https://timetowaste.ru/en_infidex).
 
 The scale arithmetic follows [Parametric Focusing Scale for 17–31 mm, M65 and
 M77](https://www.printables.com/model/1610905-parametric-focusing-scale-for-17-31-mm-m65-and-m77)
