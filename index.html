@@ -149,7 +149,7 @@ table.schedule { width: 100%; border-collapse: collapse; }
 .schedule tr.derived td.num { font-size: 15px; font-weight: 500; color: var(--ink); }
 
 .seg { display: flex; border: 1px solid var(--rule-firm); width: fit-content; margin-top: 3px; }
-.schedule td .dirsel { margin: 0 0 0 auto; }
+.schedule td .dirsel, .schedule td .tickssel { margin: 0 0 0 auto; }
 .seg button {
   font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
   padding: 5px 11px; border: 0; background: var(--paper); color: var(--ink-mid); cursor: pointer;
@@ -370,10 +370,17 @@ ol.notes li::marker { content: none; }
             <td class="unit">mm/turn</td>
           </tr>
           <tr>
+            <td class="par">Ticks on
+              <span class="note-txt">the edge nearest your index mark</span></td>
+            <td class="num" colspan="2">
+              <span class="seg tickssel" role="group" aria-label="Which edge the tick marks run from"><button type="button" data-ticks="top" aria-pressed="false">TOP</button><button type="button" data-ticks="bottom" aria-pressed="true">BOTTOM</button></span>
+            </td>
+          </tr>
+          <tr>
             <td class="par">Close focus turns
               <span class="note-txt">seen from the front of the lens</span></td>
             <td class="num" colspan="2">
-              <span class="seg dirsel" role="group" aria-label="Direction the ring turns for closer focus"><button type="button" data-dir="acw" aria-pressed="true">ACW</button><button type="button" data-dir="cw" aria-pressed="false">CW</button></span>
+              <span class="seg dirsel" role="group" aria-label="Direction the ring turns for closer focus"><button type="button" data-dir="acw" aria-pressed="false">ACW</button><button type="button" data-dir="cw" aria-pressed="true">CW</button></span>
             </td>
           </tr>
           <tr><td class="par"><label for="rotation">Rotation covered</label></td>
@@ -439,7 +446,7 @@ ol.notes li::marker { content: none; }
   var pxPerMm = 96 / 25.4;
 
   var DEFAULTS = {
-    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4, dir: "acw",
+    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4, dir: "cw", ticks: "bottom",
     angles: [20, 40, 60, 85, 115, 150, 190, 235, 280, 320]
   };
 
@@ -483,6 +490,10 @@ ol.notes li::marker { content: none; }
     // the handedness of the whole scale: mirrored, the strip is unusable, and
     // no amount of rotating it on the barrel will fix that.
     var cw = document.querySelector('.dirsel button[aria-pressed="true"]').dataset.dir === "cw";
+    // Which long edge the ticks run from, i.e. which side your index sits on.
+    // Independent of direction: rotating a strip 180 degrees does both at once,
+    // which is what turns the numerals upside down.
+    var flip = document.querySelector('.tickssel button[aria-pressed="true"]').dataset.ticks === "bottom";
     function xOf(a) {
       var x = endMarginMm + circumference * (a / 360);
       return cw ? stripLenMm - x : x;
@@ -524,7 +535,7 @@ ol.notes li::marker { content: none; }
       stripHeightMm: stripHeightMm, endMarginMm: endMarginMm,
       fullExtension: fullExtension, circumference: circumference,
       stripLenMm: stripLenMm, gap: circumference - stripLenMm, major: major,
-      cw: cw, sgn: cw ? -1 : 1, xOf: xOf,
+      cw: cw, sgn: cw ? -1 : 1, xOf: xOf, flip: flip,
       distanceFromAngle: distanceFromAngle, angleFromDistance: angleFromDistance,
       farthest: distanceFromAngle(0), nearest: distanceFromAngle(maxAngle)
     };
@@ -547,13 +558,15 @@ ol.notes li::marker { content: none; }
   function drawStripGroup(s, parent) {
     var L = s.stripLenMm * MM, H = s.stripHeightMm * MM;
     var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
-    var labelBaseline = tickMajor + LABEL_GAP * H + fontSize;
+    var labelBaseline = s.flip ? (H - tickMajor - LABEL_GAP * H)
+                               : (tickMajor + LABEL_GAP * H + fontSize);
     var xOf = function (a) { return s.xOf(a) * MM; };
 
     el("rect", { x: 0, y: 0, width: L, height: H, fill: "#000000", "stroke-width": 0 }, parent);
 
     function tick(x, len, w) {
-      el("line", { x1: x, x2: x, y1: 0, y2: len, stroke: "#ffffff", "stroke-width": w * MM }, parent);
+      el("line", { x1: x, x2: x, y1: s.flip ? H : 0, y2: s.flip ? H - len : len,
+                   stroke: "#ffffff", "stroke-width": w * MM }, parent);
     }
     tick(xOf(0), H, 1);
     tick(xOf(s.maxAngle), H, 1);
@@ -751,7 +764,8 @@ ol.notes li::marker { content: none; }
       { t: "Wrap the strip on the smooth band of the focus ring, between the flutes. That band is 13.5 mm tall." },
       { t: "The 55 mm and 80 mm builds share this focus ring and thread, so focal length is the only value that changes between them. The inner ring sets the flange distance: 41.70 mm for the 55, 36.10 mm for the 80." },
       { t: "Gerber gives you the same scale as a flexible PCB. Order it 1 layer, black coverlay, white silkscreen. The soldermask layer is empty on purpose — that is what leaves the strip black end to end." },
-      { t: "Check the direction before you commit to anything. Set the helicoid to infinity, turn toward close focus, and watch which way the ring travels past the index: the marks after ∞ have to be on the side that arrives next. Mirrored, the strip cannot be salvaged by rewrapping — the numbers would end up inverted or facing inwards — so it has to be regenerated." }
+      { t: "The defaults are what the built camera actually needed: ticks on the bottom edge, close focus turning clockwise from the front. Check yours before committing to anything. Set the helicoid to infinity, turn toward close focus, and watch which way the ring travels past the index." },
+      { t: "The two settings are independent, and that is the trap. Rotating a strip 180° to fix the direction also moves the ticks to the other edge, and takes the numerals round with it so they end up upside down. Set each one separately instead and the numbers stay upright either way." }
     ];
     if (s.maxAngle > 360) {
       notes.push({ warn: true, t: "Rotation covers " + (s.maxAngle / 360).toFixed(2) +
@@ -912,16 +926,16 @@ ol.notes li::marker { content: none; }
     var L = s.stripLenMm, H = s.stripHeightMm;
     var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
     var cap = fontSize * 0.72;
-    var labelTop = H - (tickMajor + LABEL_GAP * H);      // text hangs below the ticks
-    var baseline = labelTop - cap;
+    // Gerber is Y-up with the origin bottom-left, so "below the ticks" flips too
+    var baseline = s.flip ? (tickMajor + LABEL_GAP * H)
+                          : (H - (tickMajor + LABEL_GAP * H) - cap);
     var xOf = s.xOf;
     var out = { regions: [], strokes: [], dots: [], L: L, H: H };
 
-    function bar(x, w, top, len) {          // top measured down from the strip's top edge
-      out.regions.push([
-        [x - w / 2, H - top - len], [x + w / 2, H - top - len],
-        [x + w / 2, H - top], [x - w / 2, H - top]
-      ]);
+    function bar(x, w, off, len) {           // off measured from whichever edge the ticks run from
+      var y0 = s.flip ? off : H - off - len;
+      var y1 = s.flip ? off + len : H - off;
+      out.regions.push([[x - w / 2, y0], [x + w / 2, y0], [x + w / 2, y1], [x - w / 2, y1]]);
     }
     bar(xOf(0), 1, 0, H);
     bar(xOf(s.maxAngle), 1, 0, H);
@@ -1172,13 +1186,18 @@ ol.notes li::marker { content: none; }
     b.addEventListener("click", function () { $("focal").value = b.dataset.focal; syncLens(); generate(); });
   });
 
-  var dirButtons = Array.prototype.slice.call(document.querySelectorAll(".dirsel button"));
-  dirButtons.forEach(function (b) {
-    b.addEventListener("click", function () {
-      dirButtons.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
-      generate();
+  function wireSeg(sel) {
+    var btns = Array.prototype.slice.call(document.querySelectorAll(sel + " button"));
+    btns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        btns.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+        generate();
+      });
     });
-  });
+    return btns;
+  }
+  var dirButtons = wireSeg(".dirsel");
+  var tickButtons = wireSeg(".tickssel");
   $("focal").addEventListener("input", syncLens);
   $("resetBtn").addEventListener("click", function () {
     ["focal", "spacer", "lead", "rotation", "barrel", "height", "margin"].forEach(function (id) {
@@ -1186,6 +1205,9 @@ ol.notes li::marker { content: none; }
     });
     dirButtons.forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.dir === DEFAULTS.dir));
+    });
+    tickButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.ticks === DEFAULTS.ticks));
     });
     ringAngle = 0; syncLens(); generate();
   });

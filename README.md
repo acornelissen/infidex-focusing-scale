@@ -83,19 +83,27 @@ bars instead.
 
 ## Which way round
 
-The scale has a handedness. Once the ticks face the index and the numbers read
-upright, the direction ∞ runs round the barrel is fixed, and a mirrored strip
-cannot be rescued by rewrapping it — the numbers would come out inverted or
-facing inwards.
+The strip has two independent flips, and confusing them is how you end up with
+upside-down numerals:
 
-Which way is correct depends on where your index mark sits relative to the focus
-ring, which isn't in the STLs, so it is a setting rather than an assumption:
-**Close focus turns → ACW / CW**, seen from the front of the lens. View A is
-drawn from the front too, so it shows you what you have chosen.
+- **Ticks on → top / bottom.** Which long edge the ticks run from, i.e. which
+  side your index mark sits on.
+- **Close focus turns → ACW / CW**, seen from the front. Which way ∞ runs round
+  the barrel.
 
-To check: set the helicoid to infinity, turn toward close focus, and watch which
-way the ring travels past the index. The marks after ∞ must be on the side that
-arrives next.
+Rotating a printed strip 180° to fix the direction does *both* at once, and
+drags the numerals round with it. Setting them separately keeps the numbers
+upright whichever combination you need.
+
+The defaults are the combination the built camera actually needed: ticks on the
+bottom edge, close focus clockwise. Check yours before committing to anything —
+set the helicoid to infinity, turn toward close focus, and watch which way the
+ring travels past the index. The marks after ∞ must be on the side that arrives
+next.
+
+View A is drawn from the front, so it shows you the direction you have picked.
+It does not show the tick edge: that is an axial choice, and a plan view has no
+axis to show it on.
 
 ## Before you cut
 
