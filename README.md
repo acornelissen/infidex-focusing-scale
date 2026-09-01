@@ -130,5 +130,5 @@ The scale arithmetic follows [Parametric Focusing Scale for 17–31 mm, M65 and
 M77](https://www.printables.com/model/1610905-parametric-focusing-scale-for-17-31-mm-m65-and-m77)
 on Printables, adapted here for the Infidex helicoid.
 
-Making the scale as a black flex PCB with white silkscreen was
-[Oscar Oweson](https://panomicron.com)'s idea.
+The idea for using a Flex PCB for decals comes from
+[Oscar Oweson](https://panomicron.com).
