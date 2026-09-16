@@ -149,7 +149,7 @@ table.schedule { width: 100%; border-collapse: collapse; }
 .schedule tr.derived td.num { font-size: 15px; font-weight: 500; color: var(--ink); }
 
 .seg { display: flex; border: 1px solid var(--rule-firm); width: fit-content; margin-top: 3px; }
-.schedule td .dirsel, .schedule td .tickssel { margin: 0 0 0 auto; }
+.schedule td .dirsel, .schedule td .tickssel, .schedule td .bandsel { margin: 0 0 0 auto; }
 .seg button {
   font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
   padding: 5px 11px; border: 0; background: var(--paper); color: var(--ink-mid); cursor: pointer;
@@ -361,6 +361,13 @@ ol.notes li::marker { content: none; }
         <thead><tr><th scope="col">Parameter</th><th scope="col" class="num">Value</th><th scope="col"></th></tr></thead>
         <tbody>
           <tr>
+            <td class="par">Band
+              <span class="note-txt">turn shown on the tape and exported</span></td>
+            <td class="num" colspan="2">
+              <span class="seg bandsel" role="group" aria-label="Which turn of the helicoid to show and export"><button type="button" data-band="1" aria-pressed="true">1ST TURN</button><button type="button" data-band="2" aria-pressed="false">2ND TURN</button></span>
+            </td>
+          </tr>
+          <tr>
             <td class="par"><label for="focal">Focal length</label>
               <span class="note-txt"><span class="seg lens" role="group" aria-label="Taking lens"><button type="button" data-focal="80" aria-pressed="true">80</button><button type="button" data-focal="55" aria-pressed="false">55</button></span></span></td>
             <td class="num"><input type="number" id="focal" value="80" step="0.1" min="10" /></td>
@@ -398,9 +405,13 @@ ol.notes li::marker { content: none; }
           <tr><td class="par"><label for="barrel">Focus ring diameter</label></td>
               <td class="num"><input type="number" id="barrel" value="61" step="0.1" min="10" /></td>
               <td class="unit">mm</td></tr>
-          <tr><td class="par"><label for="height">Strip height</label>
+          <tr><td class="par"><label for="height">1st turn strip height</label>
               <span class="note-txt">smooth band is 13.5 tall</span></td>
               <td class="num"><input type="number" id="height" value="13" step="0.5" min="3" /></td>
+              <td class="unit">mm</td></tr>
+          <tr><td class="par"><label for="height2">2nd turn strip height</label>
+              <span class="note-txt">halve both to stack them on one band</span></td>
+              <td class="num"><input type="number" id="height2" value="13" step="0.5" min="3" /></td>
               <td class="unit">mm</td></tr>
           <tr><td class="par"><label for="margin">End margin</label></td>
               <td class="num"><input type="number" id="margin" value="4" step="0.5" min="0" /></td>
@@ -457,7 +468,7 @@ ol.notes li::marker { content: none; }
   var pxPerMm = 96 / 25.4;
 
   var DEFAULTS = {
-    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, margin: 4, dir: "cw", ticks: "bottom",
+    focal: 80, spacer: 0, lead: 5, rotation: 340, barrel: 61, height: 13, height2: 13, margin: 4, dir: "cw", ticks: "bottom", band: 1,
     angles: [20, 40, 60, 85, 115, 150, 190, 235, 280, 320]
   };
 
@@ -482,13 +493,22 @@ ol.notes li::marker { content: none; }
   // ---------------------------------------------------------------
   // The scale. Checked against e = f^2 / (u - f); leave it alone.
   // ---------------------------------------------------------------
-  function buildScale() {
+  function selectedBand() {
+    return +document.querySelector('.bandsel button[aria-pressed="true"]').dataset.band;
+  }
+
+  // band 1 is the first turn of the helicoid; band 2 is the second, drawn at the
+  // same barrel positions one full revolution later, so the two strips line up
+  function buildScale(bandArg) {
+    var band = bandArg || selectedBand();
+    var offset = band === 2 ? 360 : 0;
     var f = readNumber("focal", DEFAULTS.focal, 10);
     var spacer = readNumber("spacer", DEFAULTS.spacer, 0);
     var lead = readNumber("lead", DEFAULTS.lead, 0.01);
     var maxAngle = readNumber("rotation", DEFAULTS.rotation, 1, 1440);
     var barrelDia = readNumber("barrel", DEFAULTS.barrel, 10);
-    var stripHeightMm = readNumber("height", DEFAULTS.height, 3);
+    var stripHeightMm = band === 2 ? readNumber("height2", DEFAULTS.height2, 3)
+                                   : readNumber("height", DEFAULTS.height, 3);
     var endMarginMm = readNumber("margin", DEFAULTS.margin, 0);
 
     // A screw helicoid moves a fixed distance per turn, so travel across
@@ -529,26 +549,51 @@ ol.notes li::marker { content: none; }
     }
     function angleTolerance(a) { return 3 + (20 - 3) * a / maxAngle; }
 
+    // Mark angles are stored local to the band (0 to maxAngle), so every
+    // renderer can place them without knowing which turn it is drawing.
     var major = [];
-    DEFAULTS.angles.forEach(function (a) {
-      if (a < 4 || a > maxAngle - 4) return;
-      var tol = angleTolerance(a);
-      var lo = distanceFromAngle(a + tol), hi = distanceFromAngle(a - tol);
-      var cands = generateRoundedCandidates(distanceFromAngle(a)), chosen = null;
-      for (var i = 0; i < cands.length; i++) {
-        if (cands[i] >= lo && cands[i] <= hi) { chosen = cands[i]; break; }
-      }
-      if (chosen !== null) major.push({ distance: chosen, angle: angleFromDistance(chosen) });
-    });
+    if (band === 1) {
+      DEFAULTS.angles.forEach(function (a) {
+        if (a < 4 || a > maxAngle - 4) return;
+        var tol = angleTolerance(a);
+        var lo = distanceFromAngle(a + tol), hi = distanceFromAngle(a - tol);
+        var cands = generateRoundedCandidates(distanceFromAngle(a)), chosen = null;
+        for (var i = 0; i < cands.length; i++) {
+          if (cands[i] >= lo && cands[i] <= hi) { chosen = cands[i]; break; }
+        }
+        if (chosen !== null) major.push({ distance: chosen, angle: angleFromDistance(chosen) });
+      });
+    } else {
+      // The second turn is close to linear in distance, so rounding fixed
+      // angles gives ugly values like 1.23. Pick round distances instead,
+      // roundest first, and keep only those with room for their label.
+      var mmPerDeg = circumference / 360;
+      var labelMm = FONT * stripHeightMm * 2.6 + 2;
+      var minGap = labelMm / mmPerDeg;
+      var nice = [];
+      for (var u = 100; u < 1000; u += 50) nice.push(u);
+      for (u = 1000; u <= 2000; u += 100) nice.push(u);
+      nice.push(2500, 3000, 4000, 5000, 7000, 10000, 20000);
+      var rank = function (v) { return v % 500 === 0 ? 0 : v % 100 === 0 ? 1 : 2; };
+      nice.map(function (v) { return { distance: v, angle: angleFromDistance(v) - offset }; })
+        .filter(function (c) { return c.angle >= 4 && c.angle <= maxAngle - minGap; })
+        .sort(function (a, b) { return rank(a.distance) - rank(b.distance) || b.distance - a.distance; })
+        .forEach(function (c) {
+          var roomy = major.every(function (m) { return Math.abs(m.angle - c.angle) >= minGap; });
+          if (roomy) major.push(c);
+        });
+      major.sort(function (a, b) { return a.angle - b.angle; });
+    }
 
     return {
       f: f, spacer: spacer, lead: lead, maxAngle: maxAngle, barrelDia: barrelDia,
       stripHeightMm: stripHeightMm, endMarginMm: endMarginMm,
       fullExtension: fullExtension, circumference: circumference,
       stripLenMm: stripLenMm, gap: circumference - stripLenMm, major: major,
+      band: band, offset: offset,
       cw: cw, sgn: cw ? -1 : 1, xOf: xOf, flip: flip,
       distanceFromAngle: distanceFromAngle, angleFromDistance: angleFromDistance,
-      farthest: distanceFromAngle(0), nearest: distanceFromAngle(maxAngle)
+      farthest: distanceFromAngle(offset), nearest: distanceFromAngle(offset + maxAngle)
     };
   }
 
@@ -579,7 +624,7 @@ ol.notes li::marker { content: none; }
       el("line", { x1: x, x2: x, y1: s.flip ? H : 0, y2: s.flip ? H - len : len,
                    stroke: "#ffffff", "stroke-width": w * MM }, parent);
     }
-    tick(xOf(0), H, 1);
+    if (s.band === 1) tick(xOf(0), H, 1);
     tick(xOf(s.maxAngle), H, 1);
 
     s.major.forEach(function (m) {
@@ -601,7 +646,7 @@ ol.notes li::marker { content: none; }
     }
     // A spacer puts the far limit closer than infinity, so the infinity
     // symbol only belongs on the strip when there is none.
-    if (!s.spacer) symbol("∞", xOf(0), fontSize + 1 * MM, SYMBOL_FACE);
+    if (s.band === 1 && !s.spacer) symbol("∞", xOf(0), fontSize + 1 * MM, SYMBOL_FACE);
     symbol("m", xOf(s.maxAngle), fontSize, STRIP_FACE);
   }
 
@@ -686,9 +731,13 @@ ol.notes li::marker { content: none; }
                  "font-family": "Azeret Mono, monospace", "font-size": DIM.font, fill: DIM.stroke }, g);
   }
 
-  function drawDial(s) {
+  var dialScales = null;   // both turns, so the ring can be turned through them
+
+  function drawDial() {
     var svg = $("dial");
     clear(svg);
+    var s = ringAngle >= 360 ? dialScales[2] : dialScales[1];
+    var local = ringAngle - s.offset;
     var CX = 200, CY = DIAL_CY, R = 150;
     var pxMm = R / (s.barrelDia / 2);
     var band = Math.min(R - 46, s.stripHeightMm * pxMm);
@@ -702,7 +751,7 @@ ol.notes li::marker { content: none; }
     el("circle", { cx: CX, cy: CY, r: rIn, fill: "#FFFFFF" }, svg);
 
     var sgn = s.sgn;
-    var g = el("g", { transform: "rotate(" + (-sgn * ringAngle) + " " + CX + " " + CY + ")" }, svg);
+    var g = el("g", { transform: "rotate(" + (-sgn * local) + " " + CX + " " + CY + ")" }, svg);
     var marg = (s.endMarginMm / s.circumference) * 360;
     var a0 = sgn > 0 ? -marg : -(s.maxAngle + marg);
     var a1 = sgn > 0 ? s.maxAngle + marg : marg;
@@ -714,7 +763,8 @@ ol.notes li::marker { content: none; }
       el("line", { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: "#FFFFFF", "stroke-width": w }, g);
     }
     var fontSize = FONT * band;
-    mark(0, 1, pxMm); mark(s.maxAngle, 1, pxMm);
+    if (s.band === 1) mark(0, 1, pxMm);
+    mark(s.maxAngle, 1, pxMm);
     s.major.forEach(function (m) {
       mark(m.angle, TICK_MAJOR, pxMm);
       var la = sgn * m.angle;
@@ -740,7 +790,7 @@ ol.notes li::marker { content: none; }
 
     dimH(el("g", {}, svg), CX - R, CX + R, CY + R + 42, "Ø" + s.barrelDia.toFixed(2), CY + R + 4);
 
-    svg.setAttribute("aria-valuemax", String(Math.round(s.maxAngle)));
+    svg.setAttribute("aria-valuemax", String(Math.round(360 + s.maxAngle)));
     svg.setAttribute("aria-valuenow", String(Math.round(ringAngle)));
     svg.setAttribute("aria-valuetext", formatDistance(d) + " at " + Math.round(ringAngle) + " degrees");
   }
@@ -749,7 +799,8 @@ ol.notes li::marker { content: none; }
   // Readouts
   // ---------------------------------------------------------------
   function drawReadouts(s, clipped) {
-    var size = s.stripLenMm.toFixed(1) + " × " + s.stripHeightMm.toFixed(1) + " mm";
+    var size = (s.band === 2 ? "2nd turn · " : "1st turn · ") +
+               s.stripLenMm.toFixed(1) + " × " + s.stripHeightMm.toFixed(1) + " mm";
     var range = formatDistance(s.farthest) + " – " + formatDistance(s.nearest);
     $("footSize").textContent = size;
     $("footRange").textContent = range;
@@ -776,6 +827,7 @@ ol.notes li::marker { content: none; }
       { t: "The 55 mm and 80 mm builds share this focus ring and thread, so focal length is the only value that changes between them. The inner ring sets the flange distance: 41.70 mm for the 55, 36.10 mm for the 80." },
       { t: "Gerber gives you the same scale as a flexible PCB. Order it 1 layer, black coverlay, white silkscreen. The soldermask layer is empty on purpose — that is what leaves the strip black end to end." },
       { t: "The defaults are what the built camera actually needed: ticks on the bottom edge, close focus turning clockwise from the front. Check yours before committing to anything. Set the helicoid to infinity, turn toward close focus, and watch which way the ring travels past the index." },
+      { t: "The helicoid focuses a full turn past the first strip. The 2nd turn strip covers that range at the same barrel positions, one revolution later, so read it against the same index. Export and order each turn separately. The 20° gap at the end of each turn stays unlabelled." },
       { t: "The two settings are independent, and that is the trap. Rotating a strip 180° to fix the direction also moves the ticks to the other edge, and takes the numerals round with it so they end up upside down. Set each one separately instead and the numbers stay upright either way." }
     ];
     if (s.maxAngle > 360) {
@@ -803,9 +855,10 @@ ol.notes li::marker { content: none; }
   function generate() {
     var s = buildScale();
     current = s;
-    if (ringAngle > s.maxAngle) ringAngle = s.maxAngle;
+    dialScales = { 1: s.band === 1 ? s : buildScale(1), 2: s.band === 2 ? s : buildScale(2) };
+    if (ringAngle > 360 + s.maxAngle) ringAngle = 360 + s.maxAngle;
     drawTape(s);
-    drawDial(s);
+    drawDial();
 
     var clipped = false;
     try {
@@ -830,8 +883,8 @@ ol.notes li::marker { content: none; }
       return Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI;
     }
     function setAngle(v) {
-      ringAngle = Math.max(0, Math.min(current ? current.maxAngle : 360, v));
-      if (current) drawDial(current);
+      ringAngle = Math.max(0, Math.min(current ? 360 + current.maxAngle : 360, v));
+      if (current) drawDial();
     }
     svg.addEventListener("pointerdown", function (ev) {
       dragging = true; last = pointerAngle(ev); svg.setPointerCapture(ev.pointerId); ev.preventDefault();
@@ -847,7 +900,7 @@ ol.notes li::marker { content: none; }
       svg.addEventListener(t, function () { dragging = false; });
     });
     svg.addEventListener("keydown", function (ev) {
-      var step = ev.shiftKey ? 10 : 1, max = current ? current.maxAngle : 360, handled = true;
+      var step = ev.shiftKey ? 10 : 1, max = current ? 360 + current.maxAngle : 360, handled = true;
       switch (ev.key) {
         case "ArrowRight": case "ArrowUp": setAngle(ringAngle + step); break;
         case "ArrowLeft":  case "ArrowDown": setAngle(ringAngle - step); break;
@@ -887,7 +940,9 @@ ol.notes li::marker { content: none; }
     "6": { w: 0.60, p: [arc(0.32, 0.62, 0.30, 0.30, 90, 200), ell(0.30, 0.28, 0.26, 0.28)] },
     "7": { w: 0.60, p: [[[0.05, 1.00], [0.56, 1.00], [0.22, 0.00]]] },
     "8": { w: 0.60, p: [ell(0.30, 0.735, 0.225, 0.245), ell(0.30, 0.265, 0.26, 0.265)] },
-    "9": { w: 0.60, p: [arc(0.28, 0.38, 0.30, 0.30, 270, 20), ell(0.30, 0.72, 0.26, 0.26)] },
+    // the 6 turned half a turn; the spine sweeps 270 to 380 so it runs down the
+    // right side of the bowl rather than back over the top of it
+    "9": { w: 0.60, p: [arc(0.28, 0.38, 0.30, 0.30, 270, 380), ell(0.30, 0.72, 0.26, 0.28)] },
     ".": { w: 0.30, dot: [0.15, 0.06] },
     "m": { w: 0.80, p: [
       [[0.05, 0.62], [0.05, 0.00]],
@@ -948,7 +1003,7 @@ ol.notes li::marker { content: none; }
       var y1 = s.flip ? off + len : H - off;
       out.regions.push([[x - w / 2, y0], [x + w / 2, y0], [x + w / 2, y1], [x - w / 2, y1]]);
     }
-    bar(xOf(0), 1, 0, H);
+    if (s.band === 1) bar(xOf(0), 1, 0, H);
     bar(xOf(s.maxAngle), 1, 0, H);
     // 0.22 reads as boldly as the printed strip and clears JLC's 0.15 minimum
     var wText = 0.22, wInf = 0.30;
@@ -960,7 +1015,7 @@ ol.notes li::marker { content: none; }
     // them. Silkscreen has no black ink, so white would meet white: shift
     // each one clear of its bar instead, the way a lens barrel is engraved.
     var clear = 0.5 + 1 / 2;
-    if (!s.spacer) {
+    if (s.band === 1 && !s.spacer) {
       textStrokes("∞", xOf(0) + s.sgn * (clear + textWidth("∞", cap * 1.15) / 2),
                   baseline, cap * 1.15, wInf, out);
     }
@@ -1096,9 +1151,11 @@ ol.notes li::marker { content: none; }
   }
 
   $("gerberBtn").addEventListener("click", function () {
-    var f = buildGerber(current), base = "infidex-176v-focusing-scale";
+    var f = buildGerber(current), base = "infidex-176v-focusing-scale-band" + current.band;
     var readme =
-      "Infidex 176 V focusing scale, " + current.stripLenMm.toFixed(1) + " x " +
+      "Infidex 176 V focusing scale, " + (current.band === 2 ? "2nd" : "1st") + " turn, " +
+      formatDistance(current.farthest) + " to " + formatDistance(current.nearest) + ", " +
+      current.stripLenMm.toFixed(1) + " x " +
       current.stripHeightMm.toFixed(1) + " mm.\r\n\r\n" +
       "Order as: flexible PCB, 1 layer, black coverlay, white silkscreen.\r\n" +
       "Units are millimetres; do not let anything rescale the files.\r\n\r\n" +
@@ -1138,7 +1195,7 @@ ol.notes li::marker { content: none; }
     var blob = new Blob([out], { type: "image/svg+xml;charset=utf-8" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    a.href = url; a.download = "infidex-176v-focusing-scale.svg";
+    a.href = url; a.download = "infidex-176v-focusing-scale-band" + s.band + ".svg";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
@@ -1185,7 +1242,7 @@ ol.notes li::marker { content: none; }
   // ---------------------------------------------------------------
   // Schedule wiring
   // ---------------------------------------------------------------
-  ["focal", "spacer", "lead", "rotation", "barrel", "height", "margin"].forEach(function (id) {
+  ["focal", "spacer", "lead", "rotation", "barrel", "height", "height2", "margin"].forEach(function (id) {
     $(id).addEventListener("input", generate);
   });
   var lensButtons = Array.prototype.slice.call(document.querySelectorAll(".lens button"));
@@ -1209,10 +1266,21 @@ ol.notes li::marker { content: none; }
   }
   var dirButtons = wireSeg(".dirsel");
   var tickButtons = wireSeg(".tickssel");
+  var bandButtons = Array.prototype.slice.call(document.querySelectorAll(".bandsel button"));
+  bandButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      bandButtons.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      ringAngle = b.dataset.band === "2" ? 360 : 0;   // turn the dial to the band you picked
+      generate();
+    });
+  });
   $("focal").addEventListener("input", syncLens);
   $("resetBtn").addEventListener("click", function () {
-    ["focal", "spacer", "lead", "rotation", "barrel", "height", "margin"].forEach(function (id) {
+    ["focal", "spacer", "lead", "rotation", "barrel", "height", "height2", "margin"].forEach(function (id) {
       $(id).value = DEFAULTS[id];
+    });
+    bandButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(+b.dataset.band === DEFAULTS.band));
     });
     dirButtons.forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.dir === DEFAULTS.dir));

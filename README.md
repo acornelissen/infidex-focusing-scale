@@ -81,6 +81,22 @@ On the SVG the ∞ and the `m` sit on their index bars with a black halo behind
 them. Silkscreen has no black ink, so on the PCB they are shifted clear of the
 bars instead.
 
+## Second turn
+
+The printed helicoid focuses a full revolution past the first strip. Choose
+**Band → 2nd turn** to show and export a second strip for that range. It sits at
+the same barrel positions one revolution later, so both strips read against the
+same index and are the same length. The 340°–360° stretch at the end of each turn
+falls in the barrel gap and stays unlabelled.
+
+Each turn has its own height field, so you can run both at full height on
+different parts of the barrel, or halve them to stack on the 13.5 mm band.
+Exports are named `-band1` and `-band2` and are ordered separately.
+
+The second turn's labels are chosen differently. Distance is close to linear in
+angle there, so rounding fixed angles gives values like 1.23 m. It picks round
+distances instead, roundest first, and keeps only those with room for a label.
+
 ## Which way round
 
 The strip has two independent flips, and confusing them is how you end up with
