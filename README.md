@@ -72,14 +72,19 @@ The copper does nothing electrically. It is there so the fab builds a normal
 flex stack rather than laminating coverlay onto bare polyimide, which their
 checks may query. It bends fine at a 30 mm radius for a one-time install.
 
-Gerber has no text primitive, so the numerals are drawn as single-stroke
-polylines at 0.22 mm — above JLCPCB's 0.15 mm silkscreen minimum, and the 2.3 mm
-cap height clears their 0.8 mm text minimum comfortably. The ∞ is a Gerono
-lemniscate rather than hand-plotted points.
+The scale numerals are set in F5.6 by Sora Sagano, a face built from the same
+engraving constraints as Leica's lens lettering. Its outlines are embedded in the
+page, so the tape, the SVG, the Gerber and the dial all draw the same numerals and
+nothing depends on installed fonts. Gerber has no text primitive, so each numeral
+is a filled region with its counters cleared. At the default 13 mm strip the cap
+height is 2.86 mm and the strokes 0.39 mm, well over JLCPCB's 0.15 mm silkscreen
+minimum; the page warns if a strip height takes them under it. The zero's slash
+is removed, since Leica doesn't slash its zeros and on a lens it reads as Ø. F5.6
+has no ∞, so that is a Gerono lemniscate drawn at the font's stem weight.
 
-On the SVG the ∞ and the `m` sit on their index bars with a black halo behind
-them. Silkscreen has no black ink, so on the PCB they are shifted clear of the
-bars instead.
+The ∞ and the `m` sit beside their index bars rather than on them, on both the
+SVG and the PCB. Silkscreen has no black ink, so a mark on a bar would be white
+on white.
 
 ## Second turn
 
@@ -134,8 +139,9 @@ ring, measured from where the flutes sit on the ribbed variant of the part.
 
 Page © Albert Cornelissen / IDENTIDEM.design.
 
-Saira Semi Condensed and Azeret Mono are subset and self-hosted under the SIL
-Open Font License 1.1; the licence texts are in `assets/fonts/`.
+Saira Semi Condensed and Azeret Mono are subset and self-hosted, and F5.6's
+numeral outlines are embedded, all under the SIL Open Font License 1.1; the
+licence texts are in `assets/fonts/`.
 
 ## Credits
 
@@ -149,3 +155,6 @@ on Printables, adapted here for the Infidex helicoid.
 
 The idea for using a Flex PCB for decals comes from
 [Oscar Oweson](https://panomicron.com).
+
+Scale numerals are set in [F5.6](https://dotcolon.net/fonts/f5_6/) by Sora
+Sagano, after Leica's engraving face.

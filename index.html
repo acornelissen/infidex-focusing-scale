@@ -449,6 +449,7 @@ ol.notes li::marker { content: none; }
     <p>Camera: <a href="https://github.com/max05210238/Infidex_176_V">Infidex 176 V</a>, an open source project by <a href="https://www.youtube.com/@time_to_waste">Denis Aminev (Time to Waste)</a>.</p>
     <p>Scale generator after <a href="https://www.printables.com/model/1610905-parametric-focusing-scale-for-17-31-mm-m65-and-m77">Parametric Focusing Scale for 17–31 mm, M65 and M77</a> on Printables.</p>
     <p>The idea for using a Flex PCB for decals comes from <a href="https://panomicron.com">Oscar Oweson</a>.</p>
+    <p>Scale numerals set in <a href="https://dotcolon.net/fonts/f5_6/">F5.6</a> by Sora Sagano, after Leica's engraving face.</p>
   </div>
   <p class="sign">IDENTIDEM.design &middot; verify ∞ on ground glass before cutting</p>
 </div>
@@ -459,9 +460,8 @@ ol.notes li::marker { content: none; }
 
   var SVGNS = "http://www.w3.org/2000/svg";
   var MM = 5;                            // drawing units per millimetre
-  var TICK_MAJOR = 0.40, FONT = 0.25, LABEL_GAP = 0.08;
-  var STRIP_FACE  = "Saira SemiCondensed, Arial Narrow, Arial, sans-serif";
-  var SYMBOL_FACE = "Verdana, DejaVu Sans, sans-serif";
+  var TICK_MAJOR = 0.40, LABEL_GAP = 0.08;
+  var LABEL_CAP = 0.22;                  // numeral cap height, as a fraction of strip height
 
   // The rule and the strip are drawn in CSS millimetres. A browser assumes
   // 96dpi, so this is close to life size rather than exactly it.
@@ -568,7 +568,7 @@ ol.notes li::marker { content: none; }
       // angles gives ugly values like 1.23. Pick round distances instead,
       // roundest first, and keep only those with room for their label.
       var mmPerDeg = circumference / 360;
-      var labelMm = FONT * stripHeightMm * 2.6 + 2;
+      var labelMm = labelWidthMm("0.00", LABEL_CAP * stripHeightMm) + 2;
       var minGap = labelMm / mmPerDeg;
       var nice = [];
       for (var u = 100; u < 1000; u += 50) nice.push(u);
@@ -612,42 +612,25 @@ ol.notes li::marker { content: none; }
   // The strip. This group is what gets exported, unchanged.
   // ---------------------------------------------------------------
   function drawStripGroup(s, parent) {
-    var L = s.stripLenMm * MM, H = s.stripHeightMm * MM;
-    var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
-    var labelBaseline = s.flip ? (H - tickMajor - LABEL_GAP * H)
-                               : (tickMajor + LABEL_GAP * H + fontSize);
-    var xOf = function (a) { return s.xOf(a) * MM; };
-
-    el("rect", { x: 0, y: 0, width: L, height: H, fill: "#000000", "stroke-width": 0 }, parent);
-
-    function tick(x, len, w) {
-      el("line", { x1: x, x2: x, y1: s.flip ? H : 0, y2: s.flip ? H - len : len,
-                   stroke: "#ffffff", "stroke-width": w * MM }, parent);
+    var g = scalePrimitives(s), H = g.H;
+    function X(x) { return (x * MM).toFixed(3); }
+    function Y(y) { return ((H - y) * MM).toFixed(3); }
+    function trace(pts) {
+      return "M" + pts.map(function (p) { return X(p[0]) + " " + Y(p[1]); }).join("L");
     }
-    if (s.band === 1) tick(xOf(0), H, 1);
-    tick(xOf(s.maxAngle), H, 1);
 
-    s.major.forEach(function (m) {
-      var x = xOf(m.angle);
-      tick(x, tickMajor, 1);
-      txt(formatMeters(m.distance), {
-        x: x, y: labelBaseline, fill: "#ffffff", "font-size": fontSize,
-        "font-family": STRIP_FACE, "font-weight": "bold",
-        "text-anchor": "middle", "dominant-baseline": "text-after-edge"
-      }, parent);
+    el("rect", { x: 0, y: 0, width: g.L * MM, height: H * MM, fill: "#000000", "stroke-width": 0 }, parent);
+    g.regions.forEach(function (r) { el("path", { d: trace(r) + "Z", fill: "#ffffff" }, parent); });
+    if (g.glyphs.length) {
+      // even-odd, so each counter cuts out of its own numeral
+      el("path", { d: g.glyphs.map(function (c) { return trace(c.pts) + "Z"; }).join(""),
+                   fill: "#ffffff", "fill-rule": "evenodd" }, parent);
+    }
+    g.strokes.forEach(function (st) {
+      el("path", { d: trace(st.pts), fill: "none", stroke: "#ffffff", "stroke-width": st.w * MM,
+                   "stroke-linecap": "round", "stroke-linejoin": "round" }, parent);
     });
-
-    function symbol(ch, x, size, face) {
-      txt(ch, { x: x, y: labelBaseline, "font-size": size, "font-family": face, "font-weight": "bold",
-                "text-anchor": "middle", "dominant-baseline": "text-after-edge",
-                fill: "#000000", stroke: "#000000", "stroke-width": 1.5 * MM }, parent);
-      txt(ch, { x: x, y: labelBaseline, "font-size": size, "font-family": face, "font-weight": "bold",
-                "text-anchor": "middle", "dominant-baseline": "text-after-edge", fill: "#ffffff" }, parent);
-    }
-    // A spacer puts the far limit closer than infinity, so the infinity
-    // symbol only belongs on the strip when there is none.
-    if (s.band === 1 && !s.spacer) symbol("∞", xOf(0), fontSize + 1 * MM, SYMBOL_FACE);
-    symbol("m", xOf(s.maxAngle), fontSize, STRIP_FACE);
+    return g;
   }
 
   // ---------------------------------------------------------------
@@ -762,19 +745,15 @@ ol.notes li::marker { content: none; }
       var p1 = polar(CX, CY, R, a), p2 = polar(CX, CY, R - band * frac, a);
       el("line", { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: "#FFFFFF", "stroke-width": w }, g);
     }
-    var fontSize = FONT * band;
+    var cap = LABEL_CAP * band;
     if (s.band === 1) mark(0, 1, pxMm);
     mark(s.maxAngle, 1, pxMm);
     s.major.forEach(function (m) {
       mark(m.angle, TICK_MAJOR, pxMm);
       var la = sgn * m.angle;
-      var p = polar(CX, CY, R - band * (TICK_MAJOR + LABEL_GAP) - fontSize * .35, la);
-      txt(formatMeters(m.distance), {
-        x: p[0], y: p[1], fill: "#FFFFFF", "font-size": fontSize,
-        "font-family": "Azeret Mono, monospace", "font-weight": "500",
-        "text-anchor": "middle", "dominant-baseline": "middle",
-        transform: "rotate(" + la + " " + p[0] + " " + p[1] + ")"
-      }, g);
+      var p = polar(CX, CY, R - band * (TICK_MAJOR + LABEL_GAP) - cap / 2, la);
+      el("path", { d: centredLabelPath(formatMeters(m.distance), cap), fill: "#FFFFFF", "fill-rule": "evenodd",
+                   transform: "translate(" + p[0] + " " + p[1] + ") rotate(" + la + ")" }, g);
     });
 
     el("path", { d: "M" + CX + " " + (CY - R + 2) + "l-7 -14h14z", fill: "#B90000" }, svg);
@@ -798,7 +777,7 @@ ol.notes li::marker { content: none; }
   // ---------------------------------------------------------------
   // Readouts
   // ---------------------------------------------------------------
-  function drawReadouts(s, clipped) {
+  function drawReadouts(s, chk) {
     var size = (s.band === 2 ? "2nd turn · " : "1st turn · ") +
                s.stripLenMm.toFixed(1) + " × " + s.stripHeightMm.toFixed(1) + " mm";
     var range = formatDistance(s.farthest) + " – " + formatDistance(s.nearest);
@@ -837,7 +816,9 @@ ol.notes li::marker { content: none; }
       notes.push({ warn: true, t: "The strip is " + Math.abs(s.gap).toFixed(1) +
         " mm longer than the barrel. Reduce the end margin or the rotation." });
     }
-    if (clipped) notes.push({ warn: true, t: "The end symbols run off the strip. Increase the end margin." });
+    if (chk.clipped) notes.push({ warn: true, t: "The end symbols run off the strip. Increase the end margin." });
+    if (chk.crowded) notes.push({ warn: true, t: "Some numerals are closer than 0.3 mm or touching. Increase the strip height or the barrel diameter, or cover less rotation." });
+    if (chk.stemMm < 0.15) notes.push({ warn: true, t: "At this strip height the numeral strokes are " + chk.stemMm.toFixed(2) + " mm, under JLCPCB's 0.15 mm silkscreen minimum. Increase the strip height before ordering a PCB." });
 
     var ol = $("notes");
     ol.innerHTML = "";
@@ -860,16 +841,14 @@ ol.notes li::marker { content: none; }
     drawTape(s);
     drawDial();
 
-    var clipped = false;
-    try {
-      var L = s.stripLenMm * MM;
-      var texts = $("tapeStrip").querySelectorAll("#stripGroup text");
-      for (var i = 0; i < texts.length; i++) {
-        var b = texts[i].getBBox();
-        if (b.x < 0 || b.x + b.width > L) { clipped = true; break; }
-      }
-    } catch (e) { /* getBBox needs a rendered document */ }
-    drawReadouts(s, clipped);
+    var prim = scalePrimitives(s);
+    var spans = prim.labels.slice().sort(function (a, b) { return a.lo - b.lo; });
+    var chk = { clipped: false, crowded: false, stemMm: prim.stemMm };
+    spans.forEach(function (sp, i) {
+      if (sp.lo < 0 || sp.hi > prim.L) chk.clipped = true;
+      if (i && sp.lo < spans[i - 1].hi + 0.3) chk.crowded = true;
+    });
+    drawReadouts(s, chk);
   }
 
   // ---------------------------------------------------------------
@@ -915,112 +894,130 @@ ol.notes li::marker { content: none; }
   })();
 
   // ---------------------------------------------------------------
-  // Gerber: the same scale as a black flex PCB with white silkscreen.
-  // Gerber has no text primitive, so the numerals are drawn as strokes
-  // with a round aperture, the way EDA tools render silkscreen.
-  // Glyphs are on a baseline-0, cap-height-1 grid.
+  // Scale numerals: F5.6 by Sora Sagano (SIL OFL 1.1), a face built from the
+  // same engraving constraints as Leica's lens lettering. Outlines are
+  // embedded, in font units (cap height 870, baseline 0), so the tape, the
+  // SVG, the Gerber and the dial all draw identical numerals and nothing
+  // depends on which fonts are installed where the file is opened.
+  // Each contour is [hole, x, y, x, y, ...]. The zero's slash is removed:
+  // Leica doesn't slash its zeros, and on a lens a slashed 0 reads as Ø.
   // ---------------------------------------------------------------
-  function arc(cx, cy, rx, ry, a0, a1) {
-    var pts = [], steps = Math.max(6, Math.ceil(Math.abs(a1 - a0) / 12));
-    for (var i = 0; i <= steps; i++) {
-      var a = (a0 + (a1 - a0) * i / steps) * Math.PI / 180;
-      pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
-    }
-    return pts;
-  }
-  function ell(cx, cy, rx, ry) { return arc(cx, cy, rx, ry, 0, 360); }
-
-  var GLYPHS = {
-    "0": { w: 0.60, p: [ell(0.30, 0.50, 0.25, 0.48)] },
-    "1": { w: 0.60, p: [[[0.08, 0.76], [0.30, 1.00], [0.30, 0.00]], [[0.06, 0.00], [0.54, 0.00]]] },
-    "2": { w: 0.60, p: [arc(0.30, 0.72, 0.25, 0.25, 200, -20).concat([[0.04, 0.00], [0.57, 0.00]])] },
-    "3": { w: 0.60, p: [arc(0.30, 0.735, 0.245, 0.245, 200, -70), arc(0.30, 0.255, 0.255, 0.255, 70, -200)] },
-    "4": { w: 0.62, p: [[[0.45, 1.00], [0.03, 0.27], [0.58, 0.27]], [[0.45, 0.00], [0.45, 1.00]]] },
-    "5": { w: 0.60, p: [[[0.52, 1.00], [0.13, 1.00], [0.11, 0.52]], arc(0.29, 0.29, 0.275, 0.275, 128, -128)] },
-    "6": { w: 0.60, p: [arc(0.32, 0.62, 0.30, 0.30, 90, 200), ell(0.30, 0.28, 0.26, 0.28)] },
-    "7": { w: 0.60, p: [[[0.05, 1.00], [0.56, 1.00], [0.22, 0.00]]] },
-    "8": { w: 0.60, p: [ell(0.30, 0.735, 0.225, 0.245), ell(0.30, 0.265, 0.26, 0.265)] },
-    // the 6 turned half a turn; the spine sweeps 270 to 380 so it runs down the
-    // right side of the bowl rather than back over the top of it
-    "9": { w: 0.60, p: [arc(0.28, 0.38, 0.30, 0.30, 270, 380), ell(0.30, 0.72, 0.26, 0.28)] },
-    ".": { w: 0.30, dot: [0.15, 0.06] },
-    "m": { w: 0.80, p: [
-      [[0.05, 0.62], [0.05, 0.00]],
-      arc(0.22, 0.45, 0.17, 0.17, 180, 0), [[0.39, 0.45], [0.39, 0.00]],
-      arc(0.56, 0.45, 0.17, 0.17, 180, 0), [[0.73, 0.45], [0.73, 0.00]]
-    ] },
-    "∞": { w: 0.96, p: [(function () {
-      // Gerono lemniscate: a figure-of-eight without hand-plotting it.
-      // Tall enough to sit with the digits, or it reads as two circles.
-      var pts = [];
-      for (var i = 0; i <= 120; i++) {
-        var t = i / 120 * 2 * Math.PI;
-        pts.push([0.48 + 0.44 * Math.cos(t), 0.50 + 0.60 * Math.sin(t) * Math.cos(t)]);
-      }
-      return pts;
-    })()] }
+  var F56 = {
+    "0": { a: 840, l: 150, r: 690, c: [[0,663,843,657,849,650,853,642,858,634,861,626,864,617,866,607,868,597,869,586,870,575,870,265,870,254,870,243,869,233,868,223,866,214,864,206,861,198,858,190,853,183,849,177,843,171,837,167,830,162,822,159,814,156,806,154,797,152,787,151,777,150,766,150,755,150,115,150,104,151,93,152,83,154,73,156,64,159,56,162,48,167,40,171,33,177,27,183,21,190,17,198,12,206,9,214,6,223,4,233,2,243,1,254,0,265,0,575,0,586,0,597,1,607,2,617,4,626,6,634,9,642,12,650,17,657,21,663,27,669,33,673,40,678,48,681,56,684,64,686,73,688,83,689,93,690,104,690,115,690,755,690,766,689,777,688,787,686,797,684,806,681,814,678,822,673,830,669,837],[1,270,116,570,116,570,754,270,754]] },
+    "1": { a: 578, l: 108, r: 408, c: [[0,401,863,399,865,397,866,395,867,393,868,391,869,389,869,387,870,385,870,382,870,380,870,316,870,314,870,311,870,309,870,307,869,305,869,303,868,301,867,299,866,297,865,295,863,293,861,292,859,291,857,290,855,289,853,289,851,288,849,288,847,288,844,288,842,288,750,136,750,134,750,131,750,129,750,127,749,125,749,123,748,121,747,119,746,117,745,115,743,113,741,112,739,111,737,110,735,109,733,109,731,108,729,108,727,108,724,108,722,108,658,108,656,108,653,108,651,109,649,109,647,110,645,111,643,112,641,113,639,115,637,117,635,119,634,121,633,123,632,125,631,127,631,129,630,131,630,134,630,136,630,288,630,288,28,288,26,288,23,288,21,289,19,289,17,290,15,291,13,292,11,293,9,295,7,297,5,299,4,301,3,303,2,305,1,307,1,309,0,311,0,314,0,316,0,380,0,382,0,385,0,387,0,389,1,391,1,393,2,395,3,397,4,399,5,401,7,403,9,404,11,405,13,406,15,407,17,407,19,408,21,408,23,408,26,408,28,408,842,408,844,408,847,408,849,407,851,407,853,406,855,405,857,404,859,403,861]] },
+    "2": { a: 768, l: 138, r: 646, c: [[0,138,192,138,28,138,26,138,23,138,21,139,19,139,17,140,15,141,13,142,11,143,9,145,7,147,5,149,4,151,3,153,2,155,1,157,1,159,0,161,0,164,0,166,0,618,0,620,0,623,0,625,0,627,1,629,1,631,2,633,3,635,4,637,5,639,7,641,9,642,11,643,13,644,15,645,17,645,19,646,21,646,23,646,26,646,28,646,88,646,90,646,93,646,95,645,97,645,99,644,101,643,103,642,105,641,107,639,109,637,111,635,112,633,113,631,114,629,115,627,115,625,116,623,116,620,116,618,116,258,116,258,180,258,193,259,205,260,215,262,224,265,233,269,241,274,249,281,256,289,263,298,271,554,464,571,478,586,491,597,504,607,518,614,532,620,547,624,564,626,581,628,600,628,621,628,755,628,766,627,777,626,787,624,797,622,806,619,814,616,822,611,830,607,837,601,843,595,849,588,853,580,858,572,861,564,864,555,866,545,868,535,869,524,870,513,870,261,870,250,870,239,869,229,868,219,866,210,864,202,861,194,858,186,853,179,849,173,843,167,837,163,830,158,822,155,814,152,806,150,797,148,787,147,777,146,766,146,755,146,658,146,656,146,653,146,651,147,649,147,647,148,645,149,643,150,641,151,639,153,637,155,635,157,634,159,633,161,632,163,631,165,631,167,630,169,630,172,630,174,630,238,630,240,630,243,630,245,630,247,631,249,631,251,632,253,633,255,634,257,635,259,637,261,639,262,641,263,643,264,645,265,647,265,649,266,651,266,653,266,656,266,658,266,754,508,754,508,636,508,622,507,610,506,599,504,590,501,582,497,575,492,567,485,561,477,553,468,546,211,350,194,336,180,322,168,308,159,294,151,280,146,265,142,249,140,231,138,213]] },
+    "3": { a: 740, l: 90, r: 610, c: [[0,583,476,577,482,570,486,562,491,554,494,546,497,537,499,527,501,517,502,506,503,495,503,359,503,560,723,567,731,573,739,579,747,583,755,587,762,590,770,592,778,594,785,595,793,595,801,594,813,592,824,588,834,583,843,576,851,567,858,556,863,544,867,530,869,514,870,150,870,148,870,145,870,143,870,141,869,139,869,137,868,135,867,133,866,131,865,129,863,127,861,126,859,125,857,124,855,123,853,123,851,122,849,122,847,122,844,122,842,122,782,122,780,122,777,122,775,123,773,123,771,124,769,125,767,126,765,127,763,129,761,131,759,133,758,135,757,137,756,139,755,141,755,143,754,145,754,148,754,150,754,437,754,231,524,227,519,224,515,221,511,219,506,217,502,215,497,214,493,214,488,213,482,213,476,213,415,213,413,213,410,213,408,214,406,214,404,215,402,216,400,217,398,218,396,220,394,222,392,224,391,226,390,228,389,230,388,232,388,234,387,236,387,239,387,241,387,490,387,490,116,210,116,210,208,210,210,210,213,210,215,209,217,209,219,208,221,207,223,206,225,205,227,203,229,201,231,199,232,197,233,195,234,193,235,191,235,189,236,187,236,184,236,182,236,118,236,116,236,113,236,111,236,109,235,107,235,105,234,103,233,101,232,99,231,97,229,95,227,94,225,93,223,92,221,91,219,91,217,90,215,90,213,90,210,90,208,90,115,90,104,91,93,92,83,94,73,96,64,99,56,102,48,107,40,111,33,117,27,123,21,130,17,138,12,146,9,154,6,163,4,173,2,183,1,194,0,205,0,495,0,506,0,517,1,527,2,537,4,546,6,554,9,562,12,570,17,577,21,583,27,589,33,593,40,598,48,601,56,604,64,606,73,608,83,609,93,610,104,610,115,610,388,610,399,609,410,608,420,606,430,604,439,601,447,598,455,593,463,589,470]] },
+    "4": { a: 763, l: 77, r: 688, c: [[0,681,329,679,331,677,332,675,333,673,334,671,335,669,335,667,336,665,336,662,336,660,336,568,336,568,622,568,624,568,627,568,629,567,631,567,633,566,635,565,637,564,639,563,641,561,643,559,645,557,646,555,647,553,648,551,649,549,649,547,650,545,650,542,650,540,650,476,650,474,650,471,650,469,650,467,649,465,649,463,648,461,647,459,646,457,645,455,643,453,641,452,639,451,637,450,635,449,633,449,631,448,629,448,627,448,624,448,622,448,336,214,336,421,837,423,843,424,848,424,853,423,857,421,861,418,864,415,866,410,868,405,870,399,870,326,870,321,870,317,869,313,868,310,866,306,864,303,862,301,859,298,856,296,852,294,848,90,360,87,354,85,348,83,342,82,336,80,331,79,326,78,320,77,315,77,310,77,305,78,290,81,276,85,263,92,252,100,243,110,235,122,228,135,224,150,221,167,220,448,220,448,28,448,26,448,23,448,21,449,19,449,17,450,15,451,13,452,11,453,9,455,7,457,5,459,4,461,3,463,2,465,1,467,1,469,0,471,0,474,0,476,0,540,0,542,0,545,0,547,0,549,1,551,1,553,2,555,3,557,4,559,5,561,7,563,9,564,11,565,13,566,15,567,17,567,19,568,21,568,23,568,26,568,28,568,220,660,220,662,220,665,220,667,220,669,221,671,221,673,222,675,223,677,224,679,225,681,227,683,229,684,231,685,233,686,235,687,237,687,239,688,241,688,243,688,246,688,248,688,308,688,310,688,313,688,315,687,317,687,319,686,321,685,323,684,325,683,327]] },
+    "5": { a: 778, l: 110, r: 640, c: [[0,525,503,264,503,264,754,572,754,574,754,577,754,579,754,581,755,583,755,585,756,587,757,589,758,591,759,593,761,595,763,596,765,597,767,598,769,599,771,599,773,600,775,600,777,600,780,600,782,600,842,600,844,600,847,600,849,599,851,599,853,598,855,597,857,596,859,595,861,593,863,591,865,589,866,587,867,585,868,583,869,581,869,579,870,577,870,574,870,572,870,259,870,248,870,237,869,227,868,217,866,208,864,200,861,192,858,184,853,177,849,171,843,165,837,161,830,156,822,153,814,150,806,148,797,146,787,145,777,144,766,144,755,144,502,144,491,145,480,146,470,148,460,150,451,153,443,156,435,161,427,165,420,171,414,177,408,184,404,192,399,200,396,208,393,217,391,227,389,237,388,248,387,259,387,520,387,520,116,230,116,230,212,230,214,230,217,230,219,229,221,229,223,228,225,227,227,226,229,225,231,223,233,221,235,219,236,217,237,215,238,213,239,211,239,209,240,207,240,204,240,202,240,138,240,136,240,133,240,131,240,129,239,127,239,125,238,123,237,121,236,119,235,117,233,115,231,114,229,113,227,112,225,111,223,111,221,110,219,110,217,110,214,110,212,110,115,110,104,111,93,112,83,114,73,116,64,119,56,122,48,127,40,131,33,137,27,143,21,150,17,158,12,166,9,174,6,183,4,193,2,203,1,214,0,225,0,525,0,536,0,547,1,557,2,567,4,576,6,584,9,592,12,600,17,607,21,613,27,619,33,623,40,628,48,631,56,634,64,636,73,638,83,639,93,640,104,640,115,640,388,640,399,639,410,638,420,636,430,634,439,631,447,628,455,623,463,619,470,613,476,607,482,600,486,592,491,584,494,576,497,567,499,557,501,547,502,536,503]] },
+    "6": { a: 810, l: 150, r: 670, c: [[0,643,476,637,482,630,486,622,491,614,494,606,497,597,499,587,501,577,502,566,503,555,503,270,503,270,754,530,754,530,658,530,656,530,653,530,651,531,649,531,647,532,645,533,643,534,641,535,639,537,637,539,635,541,634,543,633,545,632,547,631,549,631,551,630,553,630,556,630,558,630,622,630,624,630,627,630,629,630,631,631,633,631,635,632,637,633,639,634,641,635,643,637,645,639,646,641,647,643,648,645,649,647,649,649,650,651,650,653,650,656,650,658,650,755,650,766,649,777,648,787,646,797,644,806,641,814,638,822,633,830,629,837,623,843,617,849,610,853,602,858,594,861,586,864,577,866,567,868,557,869,546,870,535,870,265,870,254,870,243,869,233,868,223,866,214,864,206,861,198,858,190,853,183,849,177,843,171,837,167,830,162,822,159,814,156,806,154,797,152,787,151,777,150,766,150,755,150,115,150,104,151,93,152,83,154,73,156,64,159,56,162,48,167,40,171,33,177,27,183,21,190,17,198,12,206,9,214,6,223,4,233,2,243,1,254,0,265,0,555,0,566,0,577,1,587,2,597,4,606,6,614,9,622,12,630,17,637,21,643,27,649,33,653,40,658,48,661,56,664,64,666,73,668,83,669,93,670,104,670,115,670,388,670,399,669,410,668,420,666,430,664,439,661,447,658,455,653,463,649,470],[1,550,116,270,116,270,387,550,387]] },
+    "7": { a: 716, l: 83, r: 632, c: [[0,83,842,83,658,83,656,83,653,83,651,84,649,84,647,85,645,86,643,87,641,88,639,90,637,92,635,94,634,96,633,98,632,100,631,102,631,104,630,106,630,109,630,111,630,175,630,177,630,180,630,182,630,184,631,186,631,188,632,190,633,192,634,194,635,196,637,198,639,199,641,200,643,201,645,202,647,202,649,203,651,203,653,203,656,203,658,203,754,500,754,214,32,212,26,211,21,212,16,213,12,215,8,218,6,222,3,226,1,231,0,237,0,308,0,313,0,317,1,321,2,324,3,328,5,331,7,333,10,336,14,338,17,340,22,621,732,623,738,625,744,627,749,628,754,630,760,630,765,631,769,632,774,632,779,632,784,631,800,628,814,623,826,617,838,608,847,597,855,585,862,571,866,554,869,536,870,111,870,109,870,106,870,104,870,102,869,100,869,98,868,96,867,94,866,92,865,90,863,88,861,87,859,86,857,85,855,84,853,84,851,83,849,83,847,83,844]] },
+    "8": { a: 823, l: 140, r: 683, c: [[0,610,415,544,448,588,467,605,476,620,485,633,496,644,509,653,522,660,536,665,552,668,569,670,587,671,606,671,755,671,766,670,777,669,787,667,797,665,806,662,814,659,822,654,830,650,837,644,843,638,849,631,853,623,858,615,861,607,864,598,866,588,868,578,869,567,870,556,870,270,870,259,870,248,869,238,868,228,866,219,864,211,861,203,858,195,853,188,849,182,843,176,837,172,830,167,822,164,814,161,806,159,797,157,787,156,777,155,766,155,755,155,611,156,592,157,573,161,556,166,540,172,526,180,512,190,499,203,488,217,478,234,470,278,451,213,417,197,407,184,397,173,385,163,371,156,357,150,342,145,326,142,309,141,291,140,272,140,115,140,104,141,93,142,83,144,73,146,64,149,56,152,48,157,40,161,33,167,27,173,21,180,17,188,12,196,9,204,6,213,4,223,2,233,1,244,0,255,0,568,0,579,0,590,1,600,2,610,4,619,6,627,9,635,12,643,17,650,21,656,27,662,33,666,40,671,48,674,56,677,64,679,73,681,83,682,93,683,104,683,115,683,270,682,289,681,307,678,324,673,341,668,356,660,370,650,383,639,395,626,406],[1,275,754,551,754,551,616,551,606,550,597,548,589,546,581,542,573,538,566,532,559,525,553,517,547,507,542,416,497,328,537,316,543,306,549,297,555,290,562,285,569,281,577,278,585,276,594,275,605,275,616],[1,563,116,260,116,260,272,260,281,261,290,263,298,265,306,268,314,273,321,277,327,283,333,290,339,298,344,402,408,525,344,533,339,540,334,546,328,550,321,554,314,558,307,560,299,562,290,563,281,563,272]] },
+    "9": { a: 810, l: 140, r: 660, c: [[0,633,843,627,849,620,853,612,858,604,861,596,864,587,866,577,868,567,869,556,870,545,870,255,870,244,870,233,869,223,868,213,866,204,864,196,861,188,858,180,853,173,849,167,843,161,837,157,830,152,822,149,814,146,806,144,797,142,787,141,777,140,766,140,755,140,482,140,471,141,460,142,450,144,440,146,431,149,423,152,415,157,407,161,400,167,394,173,388,180,384,188,379,196,376,204,373,213,371,223,369,233,368,244,367,255,367,540,367,540,116,280,116,280,212,280,214,280,217,280,219,279,221,279,223,278,225,277,227,276,229,275,231,273,233,271,235,269,236,267,237,265,238,263,239,261,239,259,240,257,240,254,240,252,240,188,240,186,240,183,240,181,240,179,239,177,239,175,238,173,237,171,236,169,235,167,233,165,231,164,229,163,227,162,225,161,223,161,221,160,219,160,217,160,214,160,212,160,115,160,104,161,93,162,83,164,73,166,64,169,56,172,48,177,40,181,33,187,27,193,21,200,17,208,12,216,9,224,6,233,4,243,2,253,1,264,0,275,0,545,0,556,0,567,1,577,2,587,4,596,6,604,9,612,12,620,17,627,21,633,27,639,33,643,40,648,48,651,56,654,64,656,73,658,83,659,93,660,104,660,115,660,755,660,766,659,777,658,787,656,797,654,806,651,814,648,822,643,830,639,837],[1,260,483,260,754,540,754,540,483]] },
+    ".": { a: 200, l: 40, r: 160, c: [[0,40,92,40,28,40,26,40,23,40,21,41,19,41,17,42,15,43,13,44,11,45,9,47,7,49,5,51,4,53,3,55,2,57,1,59,1,61,0,63,0,66,0,68,0,132,0,134,0,137,0,139,0,141,1,143,1,145,2,147,3,149,4,151,5,153,7,155,9,156,11,157,13,158,15,159,17,159,19,160,21,160,23,160,26,160,28,160,92,160,94,160,97,160,99,159,101,159,103,158,105,157,107,156,109,155,111,153,113,151,115,149,116,147,117,145,118,143,119,141,119,139,120,137,120,134,120,132,120,68,120,66,120,63,120,61,120,59,119,57,119,55,118,53,117,51,116,49,115,47,113,45,111,44,109,43,107,42,105,41,103,41,101,40,99,40,97,40,94]] },
+    "m": { a: 990, l: 140, r: 856, c: [[0,829,653,823,659,816,663,808,668,800,671,792,674,783,676,773,678,763,679,752,680,741,680,168,680,166,680,163,680,161,680,159,679,157,679,155,678,153,677,151,676,149,675,147,673,145,671,144,669,143,667,142,665,141,663,141,661,140,659,140,657,140,654,140,652,140,28,140,26,140,23,140,21,141,19,141,17,142,15,143,13,144,11,145,9,147,7,149,5,151,4,153,3,155,2,157,1,159,1,161,0,163,0,166,0,168,0,228,0,230,0,233,0,235,0,237,1,239,1,241,2,243,3,245,4,247,5,249,7,251,9,252,11,253,13,254,15,255,17,255,19,256,21,256,23,256,26,256,28,256,566,440,566,440,28,440,26,440,23,440,21,441,19,441,17,442,15,443,13,444,11,445,9,447,7,449,5,451,4,453,3,455,2,457,1,459,1,461,0,463,0,466,0,468,0,528,0,530,0,533,0,535,0,537,1,539,1,541,2,543,3,545,4,547,5,549,7,551,9,552,11,553,13,554,15,555,17,555,19,556,21,556,23,556,26,556,28,556,566,740,566,740,28,740,26,740,23,740,21,741,19,741,17,742,15,743,13,744,11,745,9,747,7,749,5,751,4,753,3,755,2,757,1,759,1,761,0,763,0,766,0,768,0,828,0,830,0,833,0,835,0,837,1,839,1,841,2,843,3,845,4,847,5,849,7,851,9,852,11,853,13,854,15,855,17,855,19,856,21,856,23,856,26,856,28,856,565,856,576,855,587,854,597,852,607,850,616,847,624,844,632,839,640,835,647]] }
   };
+  var F56_CAP = 870, F56_STEM = 120, F56_TRACK = -40;
 
-  function glyphOf(ch) { return GLYPHS[ch] || GLYPHS["0"]; }
-  var TRACK = 0.14;   // letter spacing, in cap heights
-
-  function textWidth(str, cap) {
-    var w = 0;
-    for (var i = 0; i < str.length; i++) w += glyphOf(str[i]).w + (i ? TRACK : 0);
-    return w * cap;
+  // Digits close up slightly; the decimal point keeps its full spacing, or it
+  // crowds the digit after it.
+  function advance(str, i) {
+    var byPoint = str[i] === "." || str[i + 1] === ".";
+    return F56[str[i]].a + (byPoint ? 0 : F56_TRACK);
   }
 
-  // Emit stroke polylines (and dots) for a string, centred on x, baseline at y.
-  function textStrokes(str, x, y, cap, w, out) {
-    var pen = x - textWidth(str, cap) / 2;
+  function inkOf(str) {
+    var pen = 0, lo = Infinity, hi = -Infinity;
     for (var i = 0; i < str.length; i++) {
-      var g = glyphOf(str[i]);
-      if (g.dot) out.dots.push({ at: [pen + g.dot[0] * cap, y + g.dot[1] * cap], d: w * 1.15 });
-      if (g.p) {
-        for (var j = 0; j < g.p.length; j++) {
-          out.strokes.push({ w: w, pts: g.p[j].map(function (pt) {
-            return [pen + pt[0] * cap, y + pt[1] * cap];
-          }) });
-        }
-      }
-      pen += (g.w + TRACK) * cap;
+      var g = F56[str[i]];
+      lo = Math.min(lo, pen + g.l);
+      hi = Math.max(hi, pen + g.r);
+      pen += advance(str, i);
     }
+    return { lo: lo, hi: hi };
+  }
+  function labelWidthMm(str, cap) {
+    var ink = inkOf(str);
+    return (ink.hi - ink.lo) * cap / F56_CAP;
+  }
+
+  // Calls fn(hole, pts) for each contour of a string, centred on its ink.
+  // pts are in font units relative to that centre and the baseline.
+  function eachContour(str, fn) {
+    var ink = inkOf(str), mid = (ink.lo + ink.hi) / 2, pen = 0;
+    for (var i = 0; i < str.length; i++) {
+      var g = F56[str[i]];
+      g.c.forEach(function (c) {
+        var pts = [];
+        for (var j = 1; j < c.length; j += 2) pts.push([pen + c[j] - mid, c[j + 1]]);
+        fn(!!c[0], pts);
+      });
+      pen += advance(str, i);
+    }
+  }
+
+  // Strip coordinates: millimetres, Y up, centred on cx with the baseline at y.
+  function textOutlines(str, cx, y, cap, out) {
+    var k = cap / F56_CAP;
+    eachContour(str, function (hole, pts) {
+      out.glyphs.push({ hole: hole, pts: pts.map(function (p) { return [cx + p[0] * k, y + p[1] * k]; }) });
+    });
+  }
+
+  // Dial coordinates: an SVG path centred on 0,0, Y down, for rotating into place.
+  function centredLabelPath(str, cap) {
+    var k = cap / F56_CAP, d = "";
+    eachContour(str, function (hole, pts) {
+      d += "M" + pts.map(function (p) {
+        return (p[0] * k).toFixed(2) + " " + (-(p[1] - F56_CAP / 2) * k).toFixed(2);
+      }).join("L") + "Z";
+    });
+    return d;
   }
 
   // Everything in millimetres, Y up, origin at the strip's bottom-left.
+  // The SVG strip and the Gerber are both drawn from this, so they match.
   function scalePrimitives(s) {
     var L = s.stripLenMm, H = s.stripHeightMm;
-    var tickMajor = TICK_MAJOR * H, fontSize = FONT * H;
-    var cap = fontSize * 0.72;
-    // Gerber is Y-up with the origin bottom-left, so "below the ticks" flips too
+    var tickMajor = TICK_MAJOR * H, cap = LABEL_CAP * H;
     var baseline = s.flip ? (tickMajor + LABEL_GAP * H)
-                          : (H - (tickMajor + LABEL_GAP * H) - cap);
+                          : (H - tickMajor - LABEL_GAP * H - cap);
     var xOf = s.xOf;
-    var out = { regions: [], strokes: [], dots: [], L: L, H: H };
+    var out = { regions: [], glyphs: [], strokes: [], labels: [], L: L, H: H,
+                stemMm: F56_STEM / F56_CAP * cap };
 
     function bar(x, w, off, len) {           // off measured from whichever edge the ticks run from
       var y0 = s.flip ? off : H - off - len;
       var y1 = s.flip ? off + len : H - off;
       out.regions.push([[x - w / 2, y0], [x + w / 2, y0], [x + w / 2, y1], [x - w / 2, y1]]);
     }
+    function label(str, cx) {
+      var w = labelWidthMm(str, cap);
+      out.labels.push({ lo: cx - w / 2, hi: cx + w / 2 });
+      textOutlines(str, cx, baseline, cap, out);
+    }
+
     if (s.band === 1) bar(xOf(0), 1, 0, H);
     bar(xOf(s.maxAngle), 1, 0, H);
-    // 0.22 reads as boldly as the printed strip and clears JLC's 0.15 minimum
-    var wText = 0.22, wInf = 0.30;
     s.major.forEach(function (m) {
       bar(xOf(m.angle), 1, 0, tickMajor);
-      textStrokes(formatMeters(m.distance), xOf(m.angle), baseline, cap, wText, out);
+      label(formatMeters(m.distance), xOf(m.angle));
     });
-    // On the SVG these two sit on their index bars with a black halo behind
-    // them. Silkscreen has no black ink, so white would meet white: shift
-    // each one clear of its bar instead, the way a lens barrel is engraved.
-    var clear = 0.5 + 1 / 2;
+
+    // The infinity and metre marks sit beside their index bars, the way a lens
+    // barrel is engraved, so on silkscreen white never runs into white.
+    var clear = 0.5 + 0.6;
     if (s.band === 1 && !s.spacer) {
-      textStrokes("∞", xOf(0) + s.sgn * (clear + textWidth("∞", cap * 1.15) / 2),
-                  baseline, cap * 1.15, wInf, out);
+      // F5.6 has no infinity sign, so draw a Gerono lemniscate at its stem weight
+      var A = 0.52 * cap, B = 0.30 * cap, st = out.stemMm;
+      var cx = xOf(0) + s.sgn * (clear + A + st / 2), cy = baseline + cap / 2, pts = [];
+      for (var i = 0; i <= 120; i++) {
+        var t = i / 120 * 2 * Math.PI;
+        pts.push([cx + A * Math.cos(t), cy + 2 * B * Math.sin(t) * Math.cos(t)]);
+      }
+      out.strokes.push({ w: st, pts: pts });
+      out.labels.push({ lo: cx - A - st / 2, hi: cx + A + st / 2 });
     }
-    textStrokes("m", xOf(s.maxAngle) - s.sgn * (clear + textWidth("m", cap) / 2),
-                baseline, cap, wText, out);
+    label("m", xOf(s.maxAngle) - s.sgn * (clear + labelWidthMm("m", cap) / 2));
     return out;
   }
 
@@ -1045,27 +1042,26 @@ ol.notes li::marker { content: none; }
   function buildGerber(s) {
     var g = scalePrimitives(s), L = g.L, H = g.H, f = {};
 
-    // Silkscreen: ticks as regions so their widths stay exact, text as strokes
+    // Silkscreen: ticks and numerals as filled regions, so widths stay exact.
+    // Counters are cleared afterwards with clear polarity; each one lies inside
+    // its own numeral, so nothing else is touched.
     var o = gHead("Legend,Top");
-    // one aperture per distinct stroke width, assigned in order
-    var widths = [], code = {};
-    g.strokes.concat(g.dots.map(function (d) { return { w: d.d }; })).forEach(function (e) {
-      if (widths.indexOf(e.w) < 0) widths.push(e.w);
-    });
-    widths.forEach(function (w, i) {
-      code[w] = 10 + i;
-      o.push("%ADD" + (10 + i) + "C," + w.toFixed(6) + "*%");
-    });
-    o.push("D" + code[widths[0]] + "*");
+    o.push("%ADD10C,0.100000*%");
+    var widths = [];
+    g.strokes.forEach(function (st) { if (widths.indexOf(st.w) < 0) widths.push(st.w); });
+    widths.forEach(function (w, i) { o.push("%ADD" + (11 + i) + "C," + w.toFixed(6) + "*%"); });
+    o.push("D10*");
     g.regions.forEach(function (r) { gRegion(r, o); });
-    var cur = widths[0];
-    g.strokes.forEach(function (st) {
-      if (st.w !== cur) { cur = st.w; o.push("D" + code[cur] + "*"); }
-      gPoly(st.pts, o);
-    });
-    g.dots.forEach(function (d) {
-      if (d.d !== cur) { cur = d.d; o.push("D" + code[cur] + "*"); }
-      o.push("X" + gCoord(d.at[0]) + "Y" + gCoord(d.at[1]) + "D03*");
+    g.glyphs.forEach(function (c) { if (!c.hole) gRegion(c.pts, o); });
+    var holes = g.glyphs.filter(function (c) { return c.hole; });
+    if (holes.length) {
+      o.push("%LPC*%");
+      holes.forEach(function (c) { gRegion(c.pts, o); });
+      o.push("%LPD*%");
+    }
+    widths.forEach(function (w, i) {
+      o.push("D" + (11 + i) + "*");
+      g.strokes.forEach(function (st) { if (st.w === w) gPoly(st.pts, o); });
     });
     o.push("M02*");
     f["GTO"] = o.join("\n") + "\n";
